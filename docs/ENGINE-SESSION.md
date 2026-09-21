@@ -55,7 +55,7 @@ For MVP, **per-tab no-cache** is applied on that tab’s CDP session. Prefer **o
 2. Otherwise apply configuration on this tab’s CDP session:
    - `Network.enable` (if not already; also required for DevEx capture).
    - `Network.setCacheDisabled({ cacheDisabled: true })`.
-   - `Page.setBypassServiceWorker({ bypass: true })`.
+   - `Network.setBypassServiceWorker({ bypass: true })`.
    - Best-effort: `ServiceWorker.enable`, list registrations for the tab’s origin(s), `ServiceWorker.unregister({ scopeURL })` for each.
 3. If the tab already has a committed document (already-loaded page) → perform **exactly one** `reload(ignoreCache: true)` so bypass/unregister take effect. **Never** auto-reload in a loop.
 4. If there is no committed document yet (empty / new tab) → skip reload; the next `navigate` runs under no-cache.
@@ -64,7 +64,7 @@ For MVP, **per-tab no-cache** is applied on that tab’s CDP session. Prefer **o
 ### `setNoCache(false)`
 
 1. If `noCacheEnabled` is already `false` → **no-op**.
-2. Otherwise: `Network.setCacheDisabled({ cacheDisabled: false })`, `Page.setBypassServiceWorker({ bypass: false })`. Do **not** re-register service workers.
+2. Otherwise: `Network.setCacheDisabled({ cacheDisabled: false })`, `Network.setBypassServiceWorker({ bypass: false })`. Do **not** re-register service workers.
 3. **Do not** automatically reload. Normal caching applies on the **next** navigation or user/engine `reload`.
 4. Set `noCacheEnabled = false`.
 
@@ -76,7 +76,7 @@ The single forced reload from `setNoCache(true)` must **not** reset DevEx subscr
 
 - An already-controlling SW may keep answering until the document is reloaded — hence the single forced reload on enable.
 - `ServiceWorker.unregister` is asynchronous; other tabs/clients under the same scope may still be controlled until they navigate/reload.
-- `Page.setBypassServiceWorker` applies to that page’s network stack; it is not a process-wide “SW never exists” guarantee.
+- `Network.setBypassServiceWorker` applies to that page’s network stack; it is not a process-wide “SW never exists” guarantee.
 - HTTP cache disable is per attached target/session; we do not clear disk cache in MVP.
 - Turning no-cache **off** without reload means the current document may still reflect the no-cache load until the user navigates/reloads — by design for MVP.
 
@@ -101,7 +101,7 @@ The single forced reload from `setNoCache(true)` must **not** reset DevEx subscr
 | Concern | CDP |
 |---------|-----|
 | HTTP cache off | `Network.setCacheDisabled` |
-| Bypass SW | `Page.setBypassServiceWorker` |
+| Bypass SW | `Network.setBypassServiceWorker` |
 | Unregister SW | `ServiceWorker.enable` + `ServiceWorker.unregister` |
 | Forced reload on enable | `Page.reload` `{ ignoreCache: true }` — once, only when enabling from off on a loaded page |
 
