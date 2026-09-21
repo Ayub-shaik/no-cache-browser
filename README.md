@@ -2,7 +2,7 @@
 
 Cross-platform, developer-focused browser with normal browsing plus an optional **no-cache** mode, thin inspection/logging, and one-click debug session export.
 
-**Status:** architecture frozen for MVP. Step 2 (Linux host + Chromium lifecycle: launch / tabs / navigate) is on `main`.
+**Status:** MVP host + DevEx capture/export on `main`. Linux packaging slice: pinned Chromium resolve + sandbox flags.
 
 ## MVP (frozen)
 
@@ -17,27 +17,30 @@ Cross-platform, developer-focused browser with normal browsing plus an optional 
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Host language (step 2)
+## Host language
 
-Thin **TypeScript / Node.js 20+** CDP shell (not Electron). Chromium is spawned as a separate process; the host talks DevTools Protocol only inside `src/engine/chromium/`.
+Thin **TypeScript / Node.js 20+** CDP shell (not Electron). Chromium is spawned as a separate process; CDP stays inside `src/engine/chromium/`.
 
 ## Run locally (Linux)
 
 ```bash
 npm install
-export NCB_CHROMIUM_PATH=/usr/bin/chromium   # or google-chrome
+# optional if chromium is on PATH / well-known path:
+export NCB_CHROMIUM_PATH=/usr/bin/chromium
 npm run build
 npm start -- https://example.com
 ```
 
-Headless smoke:
+Headless:
 
 ```bash
-NCB_HEADLESS=1 NCB_CHROMIUM_PATH=/usr/bin/chromium npm start -- https://example.com
-npm test   # skips cleanly if Chromium is missing
+NCB_HEADLESS=1 npm start -- https://example.com
+npm test
 ```
 
-Chromium is **not** vendored in git. Point `NCB_CHROMIUM_PATH` at a local binary for now; a pinned bundled Chromium under `third_party/chromium/` (gitignored) comes later.
+Containers/CI if sandbox fails: `NCB_CHROMIUM_NO_SANDBOX=1`. Persistent profile: `NCB_USER_DATA_DIR=...`.
+
+See [docs/LINUX.md](docs/LINUX.md) and [`config/chromium-linux.json`](config/chromium-linux.json).
 
 ## Docs
 
@@ -45,6 +48,7 @@ Chromium is **not** vendored in git. Point `NCB_CHROMIUM_PATH` at a local binary
 |-----|---------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Product freezes, engine choice, sequence, ownership |
 | [ENGINE-SESSION.md](docs/ENGINE-SESSION.md) | `Engine` / `Session` / `Tab` boundary + CDP mapping |
+| [LINUX.md](docs/LINUX.md) | Chromium path pin, sandbox flags, OS glue |
 | [MODULE-LAYOUT.md](docs/MODULE-LAYOUT.md) | Linux module folders + ownership |
 | [EXPORT-SCHEMA.md](docs/EXPORT-SCHEMA.md) | `ncb-session.json` / HAR export schema |
 
