@@ -1,6 +1,6 @@
 # No Cache Browser — Architecture (MVP)
 
-Status: **frozen for MVP** (2026-09-21). No app implementation until this note is the agreed baseline.
+Status: **frozen for MVP** (2026-09-21). Companion contracts approved: [ENGINE-SESSION.md](./ENGINE-SESSION.md), [EXPORT-SCHEMA.md](./EXPORT-SCHEMA.md). Scaffolding (README / `.gitignore` / MIT) is unblocked; app implementation follows the sequence below.
 
 ## Product
 
@@ -23,9 +23,9 @@ Trade-offs accepted: ~100MB+ download; we own Chromium version bumps.
 
 ## MVP product freezes
 
-1. **No-cache (session):** HTTP cache disabled + unregister/disable service workers. Per-browser / per-tab toggle. **Default launch = normal browsing.**
+1. **No-cache (session):** HTTP cache disabled + unregister/disable service workers. Per-browser / per-tab toggle. **Default launch = normal browsing.** Deterministic `setNoCache` reload rules: see ENGINE-SESSION.
 2. **Post-MVP:** disk cache wipe, bfcache control, cookies / localStorage / IndexedDB / storage clearing.
-3. **DevEx v1:** console stream, network request list/details, one-click HAR/session export. No element inspector / full custom DevTools.
+3. **DevEx v1:** console stream, network request list/details, one-click HAR/session export (`ncb-session.json` + optional `.har`). No element inspector / full custom DevTools.
 4. **Platforms:** Linux first; keep abstractions cross-platform; Windows and macOS after Linux is stable.
 5. **Out of MVP unless required to validate core flow:** external integrations, telemetry backends, advanced DevTools, storage-clearing UX.
 
@@ -54,21 +54,21 @@ Host UI (Linux first)
 
 | Concern | Approach |
 |---------|----------|
-| Disable HTTP cache | `Network.setCacheDisabled` (and related session cache controls as needed) |
-| Service workers | Unregister / disable for the tab session |
-| Console | CDP console / Runtime events → SessionBuffer |
+| Disable HTTP cache | `Network.setCacheDisabled` |
+| Service workers | `Page.setBypassServiceWorker` + best-effort unregister |
+| Console | CDP Runtime/Log events → SessionBuffer |
 | Network | CDP Network events → SessionBuffer → HAR |
-| Export metadata | Include no-cache toggle state |
+| Export metadata | `tab.noCacheEnabled` at export time |
 
-Exact method names live with Browser Engineer’s Engine/Session boundary draft; this table is the contract.
+Exact method names and `setNoCache` semantics: [ENGINE-SESSION.md](./ENGINE-SESSION.md). Export shapes: [EXPORT-SCHEMA.md](./EXPORT-SCHEMA.md).
 
-## Implementation sequence (no app code until this doc lands)
+## Implementation sequence
 
-1. **Scaffolding** — README, `.gitignore`, MIT license (repo currently empty).
+1. **Scaffolding** — README, `.gitignore`, MIT license. **Unblocked.**
 2. **Host + Chromium lifecycle** — launch, tabs, navigate behind `Engine` / `Session`.
-3. **No-cache toggle** — per-tab → cache off + SW unregister/disable.
-4. **DevEx capture** — CDP console + Network → in-memory SessionBuffer + simple panel.
-5. **Export** — one-click HAR/session export; stamp no-cache state in metadata.
+3. **No-cache toggle** — per-tab → cache off + SW bypass/unregister + deterministic single reload on enable.
+4. **DevEx capture** — sinks → in-memory SessionBuffer + simple panel (buffer survives forced reload).
+5. **Export** — one-click `ncb-session.json` / optional `.har`; stamp no-cache state.
 6. **Linux hardening** — minimal profiles/permissions/OS paths only.
 7. **Later** — Windows/macOS; CEF only if packaging forces it; post-MVP cache/storage controls; external integrations.
 
@@ -79,9 +79,3 @@ Exact method names live with Browser Engineer’s Engine/Session boundary draft;
 | Engine, sessions, tabs, no-cache, Chromium packaging | Browser Engineer |
 | Console/network buffer, panel, HAR/session export, DevEx settings | DevEx Engineer |
 | Requirements, engine/arch decisions, scope control, review | Lead architect |
-
-## Open follow-ups (docs only, then code)
-
-- Browser Engineer: Engine/Session boundary + CDP method mapping.
-- DevEx Engineer: minimal export schema (HAR + session metadata).
-- Lead: review those drafts; then unblock scaffolding and implementation in order above.
