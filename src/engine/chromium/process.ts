@@ -1,9 +1,14 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createServer } from "node:net";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { EngineStartConfig } from "../types.js";
+import {
+  linuxLaunchFlags,
+  resolveLinuxChromiumPath,
+  resolveUserDataDir,
+} from "./linux.js";
 
 export interface LaunchedChromium {
   process: ChildProcess;
@@ -12,19 +17,6 @@ export interface LaunchedChromium {
   debuggingPort: number;
   /** True if we created a temp user-data-dir and should delete on stop. */
   ephemeralUserData: boolean;
-}
-
-function resolveChromiumPath(config?: EngineStartConfig): string {
-  const path =
-    config?.chromiumPath?.trim() ||
-    process.env.NCB_CHROMIUM_PATH?.trim() ||
-    "";
-  if (!path) {
-    throw new Error(
-      "Chromium path not set. Pass chromiumPath or set NCB_CHROMIUM_PATH to a Linux Chromium/Chrome binary.",
-    );
-  }
-  return path;
 }
 
 async function findFreePort(): Promise<number> {
@@ -78,17 +70,22 @@ async function waitForDebuggerUrl(
 export async function launchChromium(
   config?: EngineStartConfig,
 ): Promise<LaunchedChromium & { version: string; webSocketDebuggerUrl: string }> {
-  const executablePath = resolveChromiumPath(config);
+  const executablePath = resolveLinuxChromiumPath(config);
   const debuggingPort =
     config?.debuggingPort && config.debuggingPort > 0
       ? config.debuggingPort
       : await findFreePort();
 
-  let userDataDir = config?.userDataDir;
-  let ephemeralUserData = false;
-  if (!userDataDir) {
+  const resolved = resolveUserDataDir(config);
+  let userDataDir: string;
+  let ephemeralUserData: boolean;
+  if ("fromConfig" in resolved) {
     userDataDir = await mkdtemp(join(tmpdir(), "ncb-chromium-"));
     ephemeralUserData = true;
+  } else {
+    userDataDir = resolved.userDataDir;
+    ephemeralUserData = resolved.ephemeral;
+    await mkdir(userDataDir, { recursive: true });
   }
 
   const args = [
@@ -98,6 +95,7 @@ export async function launchChromium(
     "--no-default-browser-check",
     "--disable-default-apps",
     "--disable-background-networking",
+    ...linuxLaunchFlags(config),
     ...(config?.headless ? ["--headless=new"] : []),
     ...(config?.extraArgs ?? []),
     "about:blank",
