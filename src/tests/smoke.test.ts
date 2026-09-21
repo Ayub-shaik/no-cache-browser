@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { accessSync, constants } from "node:fs";
 import { createEngine } from "../engine/index.js";
+import type { ConsoleEvent, NetworkEvent } from "../engine/index.js";
 
 function resolveChromiumForTest(): string | null {
   const fromEnv = process.env.NCB_CHROMIUM_PATH?.trim();
@@ -54,8 +55,23 @@ test(
 
       const session = await engine.createBrowserContext();
       const tab = await session.createTab();
+      const consoleEvents: ConsoleEvent[] = [];
+      const networkEvents: NetworkEvent[] = [];
+      tab.subscribe({
+        onConsole: (e) => consoleEvents.push(e),
+        onNetwork: (e) => networkEvents.push(e),
+      });
+
       await tab.navigate("https://example.com");
-      await tab.reload(true);
+      assert.equal(tab.noCacheEnabled, false);
+      await tab.setNoCache(true);
+      assert.equal(tab.noCacheEnabled, true);
+      await tab.setNoCache(true); // idempotent
+      assert.equal(tab.noCacheEnabled, true);
+      await tab.setNoCache(false);
+      assert.equal(tab.noCacheEnabled, false);
+
+      assert.ok(networkEvents.some((e) => e.kind === "request"));
       await tab.close();
       await session.close();
     } finally {
