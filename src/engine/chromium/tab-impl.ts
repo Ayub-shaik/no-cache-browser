@@ -70,7 +70,7 @@ export class ChromiumTab implements Tab {
         this.cdpSessionId,
       );
       await this.cdp.send(
-        "Page.setBypassServiceWorker",
+        "Network.setBypassServiceWorker",
         { bypass: true },
         this.cdpSessionId,
       );
@@ -89,7 +89,7 @@ export class ChromiumTab implements Tab {
       this.cdpSessionId,
     );
     await this.cdp.send(
-      "Page.setBypassServiceWorker",
+      "Network.setBypassServiceWorker",
       { bypass: false },
       this.cdpSessionId,
     );
