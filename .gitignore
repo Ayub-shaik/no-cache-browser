@@ -1,0 +1,48 @@
+# Build / deps
+/node_modules/
+/dist/
+/build/
+/out/
+/target/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Chromium / engine binaries (pinned artifacts downloaded separately)
+/third_party/chromium/
+/chromium/
+*.chromedriver*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs / exports / local debug dumps
+*.log
+/logs/
+/exports/
+*.har
+*.ncb-session.json
+
+# Test / coverage
+/coverage/
+.nyc_output/
+*.lcov
+
+# Rust / CMake / misc
+/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+Cargo.lock
