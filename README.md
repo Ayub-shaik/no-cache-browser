@@ -2,7 +2,7 @@
 
 Cross-platform, developer-focused browser with normal browsing plus an optional **no-cache** mode, thin inspection/logging, and one-click debug session export.
 
-**Status:** architecture frozen for MVP. Step 2 (Linux host + Chromium lifecycle) is in progress on `feat/step2-engine-host`.
+**Status:** architecture frozen for MVP. Step 2 (Linux host + Chromium lifecycle) lives on branch `feat/step2-engine-host`.
 
 ## MVP (frozen)
 
@@ -19,7 +19,7 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Host language (step 2)
 
-Thin **TypeScript / Node.js 22+** CDP shell (not Electron). Chromium is spawned as a separate process; the host talks DevTools Protocol only inside `src/engine/chromium/`.
+Thin **TypeScript / Node.js 20+** CDP shell (not Electron). Chromium is spawned as a separate process; the host talks DevTools Protocol only inside `src/engine/chromium/`.
 
 ## Run locally (Linux)
 

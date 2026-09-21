@@ -1,6 +1,6 @@
-# Linux module layout (step 2 sketch)
+# Linux module layout (step 2)
 
-Status: **step 2 implementation** — TypeScript/Node host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
+Status: **step 2 implementation** — TypeScript/Node 20+ host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 Owner: Browser Engineer
 
@@ -13,8 +13,7 @@ src/
     index.ts              // public exports + createEngine()
     chromium/             // ONLY place that speaks CDP
       process.ts          // locate binary (NCB_CHROMIUM_PATH), spawn
-      cdp.ts              // minimal CDP WebSocket client
-      ws-shim.ts          // Node WebSocket adapter
+      cdp.ts              // minimal CDP WebSocket client (ws)
       adapter.ts          // ChromiumEngine + Session/Tab impls
   host/
     main.ts               // Linux CLI entry
@@ -22,7 +21,7 @@ src/
     smoke.test.ts         // skip if Chromium missing
 ```
 
-`session/` and `tab/` live inside `chromium/adapter.ts` for step 2 (same ownership rules). Split to top-level modules when setNoCache/sinks land if the file grows.
+`Session` / `Tab` implementations live in `chromium/adapter.ts` for step 2 (same ownership rules). Split out when setNoCache/sinks land if the file grows.
 
 Future: `devex/` consumes Tab sinks only — never imports `engine/chromium/`.
 

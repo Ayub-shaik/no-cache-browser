@@ -1,4 +1,4 @@
-import WebSocket from "./ws-shim.js";
+import WebSocket from "ws";
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
@@ -16,14 +16,15 @@ type Pending = {
   reject: (err: Error) => void;
 };
 
-/**
- * Minimal CDP client. Internal to engine/chromium only.
- */
+/** Minimal CDP client. Internal to engine/chromium only. */
 export class CdpConnection {
   private ws: WebSocket;
   private nextId = 1;
   private pending = new Map<number, Pending>();
-  private listeners = new Map<string, Set<(params: Json | undefined, sessionId?: string) => void>>();
+  private listeners = new Map<
+    string,
+    Set<(params: Json | undefined, sessionId?: string) => void>
+  >();
   private openPromise: Promise<void>;
 
   constructor(webSocketDebuggerUrl: string) {
@@ -52,9 +53,11 @@ export class CdpConnection {
     return () => set!.delete(handler);
   }
 
-  async send<
-    T extends Json | undefined = Json | undefined,
-  >(method: string, params?: Json, sessionId?: string): Promise<T> {
+  async send<T extends Json | undefined = Json | undefined>(
+    method: string,
+    params?: Record<string, unknown>,
+    sessionId?: string,
+  ): Promise<T> {
     await this.openPromise;
     const id = this.nextId++;
     const message: Record<string, unknown> = { id, method };
