@@ -145,7 +145,7 @@ export function attachCaptureListeners(opts: {
       const event: NetworkEvent = {
         kind: "failed",
         requestId: p.requestId,
-        timestamp: p.encodedDataLength as unknown as number,
+        timestamp: p.timestamp ?? Date.now(),
         errorText: p.errorText ?? "failed",
         canceled: p.canceled,
       };
