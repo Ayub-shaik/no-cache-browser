@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+import { strict as assert } from "node:assert";
 import test from "node:test";
 import { SessionBuffer } from "../devex/session-buffer.js";
 import type { NetworkEvent, Tab } from "../engine/types.js";
@@ -22,7 +22,7 @@ function fakeTab(overrides?: Partial<Tab>): Tab {
   };
 }
 
-test("SessionBuffer merges network events and keeps console across clear-not-on-reload semantics", () => {
+test("SessionBuffer merges network events and keeps console across reload", () => {
   const buf = new SessionBuffer({ consoleCap: 3 });
   buf.appendConsole({
     timestamp: Date.parse("2026-09-21T10:00:00.000Z"),
@@ -67,7 +67,7 @@ test("SessionBuffer merges network events and keeps console across clear-not-on-
     text: "after-reload",
   });
 
-  assert.Equal(buf.getConsoleEntries().length, 3);
+  assert.equal(buf.getConsoleEntries().length, 3);
   assert.equal(buf.getConsoleEntries()[2]?.text, "after-reload");
   assert.deepEqual(buf.getNetworkRequestIds(), ["r1"]);
 
