@@ -1,0 +1,13 @@
+{
+  "description": "Linux Chromium pin for No Cache Browser MVP. Binary is not vendored in git yet.",
+  "platform": "linux",
+  "envVar": "NCB_CHROMIUM_PATH",
+  "bundledRelativePath": "third_party/chromium/chrome",
+  "searchPaths": [
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome"
+  ],
+  "notes": "Prefer NCB_CHROMIUM_PATH or a future pinned build under third_party/chromium/. Set NCB_CHROMIUM_NO_SANDBOX=1 in containers/CI if the setuid sandbox fails."
+}

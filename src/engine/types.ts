@@ -11,16 +11,21 @@ export interface ChromiumInfo {
 }
 
 export interface EngineStartConfig {
-  /** Absolute path to Chromium/Chrome. Defaults to env `NCB_CHROMIUM_PATH`. */
+  /** Absolute path to Chromium/Chrome. See Linux resolve order in docs/LINUX.md. */
   chromiumPath?: string;
-  /** Extra Chromium flags (Linux sandbox flags, etc.). */
+  /** Extra Chromium flags (appended after Linux defaults). */
   extraArgs?: string[];
   /** Prefer headless for CI/smoke; default false for interactive host. */
   headless?: boolean;
   /** Fixed debugging port; 0 = ephemeral (recommended). */
   debuggingPort?: number;
-  /** User-data-dir; created if missing. */
+  /** User-data-dir; defaults to NCB_USER_DATA_DIR or an ephemeral temp dir. */
   userDataDir?: string;
+  /**
+   * Force `--no-sandbox` on Linux. Also honor env `NCB_CHROMIUM_NO_SANDBOX=1`.
+   * Auto-enabled when root or in a detected container.
+   */
+  linuxNoSandbox?: boolean;
 }
 
 export interface Engine {
