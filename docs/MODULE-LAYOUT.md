@@ -1,43 +1,40 @@
 # Linux module layout (step 2 sketch)
 
-Status: **sketch only** — no app code until cloud-agent usage is available. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
+Status: **step 2 implementation** — TypeScript/Node host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 Owner: Browser Engineer
 
-## Proposed tree (Linux host)
-
-Language TBD at implement time (thin CDP shell, not Electron). Paths are logical:
+## Tree
 
 ```text
 src/
   engine/
-    mod                // Engine trait/interface: start, stop, createBrowserContext, chromiumInfo
-    chromium/          // ONLY place that speaks CDP / owns the WebSocket client
-      adapter          // ChromiumEngine implements Engine
-      process          // locate binary (NCB_CHROMIUM_PATH), spawn with --remote-debugging-port
-      cdp              // low-level CDP IO (internal)
-  session/
-    mod                // Session: createTab, close; holds browserContextId
-  tab/
-    mod                // Tab: navigate, reload, setNoCache (stub/later), subscribe (later)
+    types.ts              // Engine / Session / Tab interfaces (no CDP)
+    index.ts              // public exports + createEngine()
+    chromium/             // ONLY place that speaks CDP
+      process.ts          // locate binary (NCB_CHROMIUM_PATH), spawn
+      cdp.ts              // minimal CDP WebSocket client
+      ws-shim.ts          // Node WebSocket adapter
+      adapter.ts          // ChromiumEngine + Session/Tab impls
   host/
-    main               // Linux CLI/entry: wire Engine → one window Session → tabs
+    main.ts               // Linux CLI entry
+  tests/
+    smoke.test.ts         // skip if Chromium missing
 ```
 
-Future (not step 2): `devex/` consumes Tab sinks only — never imports `engine/chromium/`.
+`session/` and `tab/` live inside `chromium/adapter.ts` for step 2 (same ownership rules). Split to top-level modules when setNoCache/sinks land if the file grows.
+
+Future: `devex/` consumes Tab sinks only — never imports `engine/chromium/`.
 
 ## Ownership
 
 | Module | Owns | Must not |
 |--------|------|----------|
-| `engine/` (interface) | Lifecycle API | CDP types |
+| `engine/types` | Lifecycle API | CDP types |
 | `engine/chromium/` | Process spawn, CDP, Target/Page calls | UI, export schema |
-| `session/` | BrowserContext mapping, tab list | Raw CDP client |
-| `tab/` | Navigation + later no-cache / sinks | Import CDP protocol crates/types into public API |
-| `host/` | Process entry, minimal window/tab UX | Protocol details |
+| `host/` | Process entry | Protocol details |
 
 ## Step 2 fill-in
 
-- Implement `engine/` + `chromium/process` + `chromium/adapter` + `session/` + `tab/navigate` + `host/main`.
-- Leave `setNoCache` and `subscribe` as documented stubs or omit until steps 3–4.
-- Tests: smoke under `tests/` or `host` smoke that skips if Chromium path missing.
+- [x] `engine/` + `chromium/process` + `chromium/adapter` + navigate/reload + `host/main`
+- [ ] `setNoCache` / `subscribe` — steps 3–4

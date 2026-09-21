@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type {
   ChromiumInfo,
   Engine,
@@ -25,10 +24,6 @@ interface CreateTargetResult {
 
 interface AttachToTargetResult {
   sessionId: string;
-}
-
-interface NavigateResult {
-  frameId: string;
 }
 
 export class ChromiumEngine implements Engine {
@@ -149,20 +144,12 @@ class ChromiumTab implements Tab {
 
   async navigate(url: string): Promise<void> {
     this.assertOpen();
-    await this.cdp.send<NavigateResult>(
-      "Page.navigate",
-      { url },
-      this.cdpSessionId,
-    );
+    await this.cdp.send("Page.navigate", { url }, this.cdpSessionId);
   }
 
   async reload(ignoreCache = false): Promise<void> {
     this.assertOpen();
-    await this.cdp.send(
-      "Page.reload",
-      { ignoreCache },
-      this.cdpSessionId,
-    );
+    await this.cdp.send("Page.reload", { ignoreCache }, this.cdpSessionId);
   }
 
   async close(): Promise<void> {
@@ -181,6 +168,3 @@ class ChromiumTab implements Tab {
 export function createEngine(): Engine {
   return new ChromiumEngine();
 }
-
-// silence unused import if tree-shaken oddly
-void randomUUID;
