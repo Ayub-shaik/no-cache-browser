@@ -1,8 +1,6 @@
-# Linux module layout (step 2)
+# Linux module layout
 
-Status: **step 2 implementation** — TypeScript/Node 20+ host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md) and [ARCHITECTURE.md](./ARCHITECTURE.md).
-
-Owner: Browser Engineer
+Status: **MVP implementation in progress** — TypeScript/Node 20+ host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md), [ARCHITECTURE.md](./ARCHITECTURE.md), and [EXPORT-SCHEMA.md](./EXPORT-SCHEMA.md).
 
 ## Tree
 
@@ -12,28 +10,31 @@ src/
     types.ts              // Engine / Session / Tab interfaces (no CDP)
     index.ts              // public exports + createEngine()
     chromium/             // ONLY place that speaks CDP
-      process.ts          // locate binary (NCB_CHROMIUM_PATH), spawn
-      cdp.ts              // minimal CDP WebSocket client (ws)
-      adapter.ts          // ChromiumEngine + Session/Tab impls
+      process.ts
+      cdp.ts
+      adapter.ts
   host/
-    main.ts               // Linux CLI entry
+    main.ts               // Linux CLI entry + DevEx panel wiring
+  devex/                  // DevEx Engineer — sinks only, never imports chromium/
+    index.ts
+    session-buffer.ts     // in-memory console + network; survives no-cache reload
+    panel.ts              // thin CLI panel + local export
   tests/
-    smoke.test.ts         // skip if Chromium missing
+    smoke.test.ts
+    session-buffer.test.ts
 ```
-
-`Session` / `Tab` implementations live in `chromium/adapter.ts` for step 2 (same ownership rules). Split out when setNoCache/sinks land if the file grows.
-
-Future: `devex/` consumes Tab sinks only — never imports `engine/chromium/`.
 
 ## Ownership
 
 | Module | Owns | Must not |
 |--------|------|----------|
-| `engine/types` | Lifecycle API | CDP types |
-| `engine/chromium/` | Process spawn, CDP, Target/Page calls | UI, export schema |
-| `host/` | Process entry | Protocol details |
+| `engine/types` | Lifecycle API + sink event shapes | CDP types |
+| `engine/chromium/` | Process spawn, CDP, Target/Page/Network/SW | UI, export schema |
+| `devex/` | SessionBuffer, panel, HAR/session export | CDP, Chromium process |
+| `host/` | Process entry, wiring | Protocol details |
 
-## Step 2 fill-in
+## Fill-in
 
-- [x] `engine/` + `chromium/process` + `chromium/adapter` + navigate/reload + `host/main`
-- [ ] `setNoCache` / `subscribe` — steps 3–4
+- [x] Step 2: Engine/Session/Tab launch + navigate
+- [x] Step 3–4: setNoCache + Tab.subscribe sinks
+- [x] DevEx: SessionBuffer + CLI panel + export
