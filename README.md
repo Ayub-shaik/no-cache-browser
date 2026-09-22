@@ -2,13 +2,13 @@
 
 Cross-platform, developer-focused browser with normal browsing plus an optional **no-cache** mode, thin inspection/logging, and one-click debug session export.
 
-**Status:** MVP host + DevEx capture/export on `main`. Linux packaging slice: pinned Chromium resolve + sandbox flags.
+**Status:** MVP host + DevEx capture/export on `main`. Linux packaging: pinned Chrome-for-Testing Chromium (not system Google Chrome by default).
 
 ## MVP (frozen)
 
 | Area | v1 |
 |------|----|
-| Engine | Bundled Chromium + thin host over CDP |
+| Engine | Bundled/pinned Chromium + thin host over CDP |
 | Platforms | Linux first; Windows / macOS later |
 | Default launch | Normal browsing |
 | No-cache | Per-tab toggle: HTTP cache off + SW bypass/unregister; one `reload(ignoreCache)` when enabling on a loaded page |
@@ -25,10 +25,22 @@ Thin **TypeScript / Node.js 20+** CDP shell (not Electron). Chromium is spawned 
 
 ```bash
 npm install
-# optional if chromium is on PATH / well-known path:
-export NCB_CHROMIUM_PATH=/usr/bin/chromium
+npm run fetch-chromium   # pinned CfT → third_party/chromium/ (gitignored)
 npm run build
 npm start -- https://example.com
+```
+
+Bring-your-own binary instead of fetching:
+
+```bash
+export NCB_CHROMIUM_PATH=/path/to/chrome
+npm run build && npm start -- https://example.com
+```
+
+Opt-in to system Chromium/Chrome (off by default):
+
+```bash
+export NCB_ALLOW_SYSTEM_CHROMIUM=1
 ```
 
 Headless:
@@ -40,7 +52,7 @@ npm test
 
 Containers/CI if sandbox fails: `NCB_CHROMIUM_NO_SANDBOX=1`. Persistent profile: `NCB_USER_DATA_DIR=...`.
 
-See [docs/LINUX.md](docs/LINUX.md) and [`config/chromium-linux.json`](config/chromium-linux.json).
+See [docs/LINUX.md](docs/LINUX.md), [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md), and [`config/chromium-linux.json`](config/chromium-linux.json).
 
 ## Docs
 
@@ -48,10 +60,11 @@ See [docs/LINUX.md](docs/LINUX.md) and [`config/chromium-linux.json`](config/chr
 |-----|---------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Product freezes, engine choice, sequence, ownership |
 | [ENGINE-SESSION.md](docs/ENGINE-SESSION.md) | `Engine` / `Session` / `Tab` boundary + CDP mapping |
-| [LINUX.md](docs/LINUX.md) | Chromium path pin, sandbox flags, OS glue |
+| [LINUX.md](docs/LINUX.md) | Chromium pin, fetch, resolve order, sandbox flags |
+| [DEPENDENCIES.md](docs/DEPENDENCIES.md) | Chromium/CfT vs MIT scope |
 | [MODULE-LAYOUT.md](docs/MODULE-LAYOUT.md) | Linux module folders + ownership |
 | [EXPORT-SCHEMA.md](docs/EXPORT-SCHEMA.md) | `ncb-session.json` / HAR export schema |
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — covers No Cache Browser source only; Chromium is a separate dependency.
