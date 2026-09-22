@@ -12,6 +12,7 @@ Env:
   NCB_EXPORT_DIR               Export directory (default: ./exports)
   NCB_ALLOW_SYSTEM_ENGINE=1  Opt-in system engine (off by default)
   NCB_UI=0                     Interactive but skip NCB window (content + DevEx CLI only)
+  (With NCB window: DevEx is the in-app Console / Network / Export dock; CLI stays for headless.)
 `);
   process.exit(2);
 }
@@ -59,14 +60,16 @@ async function main(): Promise<void> {
 
     const tab = await controller.start(false);
 
+    // Product path: DevEx lives in the NCB window. CLI panel only when headless or NCB_UI=0.
+    const useCliPanel = skipUi || headless;
     panel = attachDevExPanel({
       tab,
       buffer,
       exportDir: process.env.NCB_EXPORT_DIR,
       getPageUrl: () => controller!.getPageUrl(),
       getPageTitle: () => controller!.getPageTitle(),
-      liveLog: true,
-      interactive: !headless,
+      liveLog: useCliPanel,
+      interactive: useCliPanel && !headless,
       setSaveNothing: (enabled) => controller!.setSaveNothing(enabled),
       getNoCacheEnabled: () => controller!.noCacheEnabled(),
     });
@@ -74,7 +77,28 @@ async function main(): Promise<void> {
     await controller.navigate(url);
     console.log(`Content tab ${tab.id} → ${url}`);
 
+    let unsubBuffer: (() => void) | null = null;
+
     if (!skipUi) {
+      const buildDevExSnapshot = () => {
+        const all = buffer.getConsoleEntries();
+        const consoleEntries = all.slice(-500).map((e, i) => ({
+          id: `c-${all.length - Math.min(all.length, 500) + i}`,
+          level: e.level,
+          text: e.text,
+          timestamp: Date.parse(e.timestamp) || Date.now(),
+          url: e.url,
+        }));
+        const networkAll = buffer.getNetworkSummary();
+        const network = networkAll.slice(-500);
+        return {
+          console: consoleEntries,
+          network,
+          consoleCount: all.length,
+          networkCount: networkAll.length,
+        };
+      };
+
       hostUi = await startHostUiServer({
         getState: () => ({
           url: controller!.getPageUrl(),
@@ -108,12 +132,30 @@ async function main(): Promise<void> {
           await controller!.closeTab(tabId);
           console.log(`Closed tab ${tabId} (downloads continue while process runs)`);
         },
+        getDevExSnapshot: buildDevExSnapshot,
+        onExportSession: () => panel!.exportSession(),
+        onExportHar: () => panel!.exportHar(),
+        onDevExClear: () => {
+          buffer.clear();
+        },
       });
+
+      // Live push console/network into the NCB DevEx dock (throttled).
+      let pending = false;
+      unsubBuffer = buffer.onUpdate(() => {
+        if (pending) return;
+        pending = true;
+        setImmediate(() => {
+          pending = false;
+          hostUi?.broadcastDevEx();
+        });
+      });
+      hostUi.broadcastDevEx();
 
       uiSession = await engine.createBrowserContext();
       const uiTab = await uiSession.createTab(hostUi.url);
       console.log(`NCB window: ${hostUi.url} (target ${uiTab.id})`);
-      console.log("NCB window: tabs / URL / Go / Back / Forward / Duplicate / Save nothing");
+      console.log("NCB window: tabs / nav / save-nothing + DevEx (console / network / export)");
     }
 
     if (headless) {
@@ -125,11 +167,14 @@ async function main(): Promise<void> {
       return;
     }
 
-    console.log("Running (NCB window + DevEx stdin; Ctrl+C to quit)…");
+    console.log(skipUi
+      ? "Running (content + DevEx CLI; Ctrl+C to quit)…"
+      : "Running (NCB window with in-app DevEx; Ctrl+C to quit)…");
     await new Promise<void>((resolve) => {
       const shutdown = async () => {
         process.off("SIGINT", onSig);
         process.off("SIGTERM", onSig);
+        unsubBuffer?.();
         panel?.stop();
         await hostUi?.close().catch(() => undefined);
         await uiSession?.close().catch(() => undefined);

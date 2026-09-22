@@ -15,13 +15,39 @@ export type HostUiClientMessage =
   | { type: "duplicate" }
   | { type: "activate-tab"; tabId: string }
   | { type: "close-tab"; tabId: string }
-  | { type: "go"; url?: string };
+  | { type: "go"; url?: string }
+  | { type: "export-session" }
+  | { type: "export-har" }
+  | { type: "devex-clear" };
 
 export interface HostUiState {
   url: string;
   noCacheEnabled: boolean;
   status: string;
   tabs: TabSummary[];
+}
+
+export interface DevExConsoleRow {
+  id: string;
+  level: string;
+  text: string;
+  timestamp: number;
+  url?: string;
+}
+
+export interface DevExNetworkRow {
+  requestId: string;
+  method: string;
+  url: string;
+  status: number | null;
+  errorText?: string;
+}
+
+export interface DevExSnapshot {
+  console: DevExConsoleRow[];
+  network: DevExNetworkRow[];
+  consoleCount: number;
+  networkCount: number;
 }
 
 export interface HostUiServerHandlers {
@@ -33,6 +59,11 @@ export interface HostUiServerHandlers {
   onActivateTab: (tabId: string) => Promise<void> | void;
   onCloseTab: (tabId: string) => Promise<void> | void;
   getState: () => HostUiState;
+  /** Optional: product DevEx dock (console / network / export). */
+  getDevExSnapshot?: () => DevExSnapshot;
+  onExportSession?: () => Promise<string> | string;
+  onExportHar?: () => Promise<string> | string;
+  onDevExClear?: () => void;
 }
 
 export interface HostUiServer {
@@ -40,6 +71,7 @@ export interface HostUiServer {
   url: string;
   close: () => Promise<void>;
   broadcastState: () => void;
+  broadcastDevEx: () => void;
 }
 
 function loadHostUiHtml(): string {
@@ -67,7 +99,7 @@ function normalizeUrl(raw: string): string {
 
 /**
  * Local HTTP + WebSocket control plane for the NCB product window
- * (address bar, nav, tab strip, save-nothing toggle).
+ * (address bar, nav, tab strip, save-nothing toggle, DevEx dock).
  */
 export async function startHostUiServer(handlers: HostUiServerHandlers): Promise<HostUiServer> {
   const html = loadHostUiHtml();
@@ -108,9 +140,21 @@ export async function startHostUiServer(handlers: HostUiServerHandlers): Promise
     }
   };
 
+  const broadcastDevEx = (): void => {
+    if (!handlers.getDevExSnapshot) return;
+    const snap = handlers.getDevExSnapshot();
+    const payload = JSON.stringify({ type: "devex", ...snap });
+    for (const ws of clients) {
+      if (ws.readyState === ws.OPEN) ws.send(payload);
+    }
+  };
+
   wss.on("connection", (ws) => {
     clients.add(ws);
     ws.send(JSON.stringify({ type: "state", ...handlers.getState() }));
+    if (handlers.getDevExSnapshot) {
+      ws.send(JSON.stringify({ type: "devex", ...handlers.getDevExSnapshot() }));
+    }
     ws.on("message", (data) => {
       void (async () => {
         let msg: HostUiClientMessage;
@@ -135,6 +179,23 @@ export async function startHostUiServer(handlers: HostUiServerHandlers): Promise
             await handlers.onActivateTab(msg.tabId);
           } else if (msg.type === "close-tab") {
             await handlers.onCloseTab(msg.tabId);
+          } else if (msg.type === "export-session") {
+            if (!handlers.onExportSession) throw new Error("Export not available");
+            const file = await handlers.onExportSession();
+            ws.send(JSON.stringify({ type: "export-done", kind: "session", file }));
+            broadcastState();
+            return;
+          } else if (msg.type === "export-har") {
+            if (!handlers.onExportHar) throw new Error("HAR export not available");
+            const file = await handlers.onExportHar();
+            ws.send(JSON.stringify({ type: "export-done", kind: "har", file }));
+            broadcastState();
+            return;
+          } else if (msg.type === "devex-clear") {
+            handlers.onDevExClear?.();
+            broadcastDevEx();
+            broadcastState();
+            return;
           }
           broadcastState();
         } catch (err) {
@@ -156,6 +217,7 @@ export async function startHostUiServer(handlers: HostUiServerHandlers): Promise
     port,
     url: `http://127.0.0.1:${port}/`,
     broadcastState,
+    broadcastDevEx,
     close: async () => {
       for (const ws of clients) {
         try {

@@ -4,6 +4,9 @@ export {
   type HostUiServer,
   type HostUiState,
   type HostUiServerHandlers,
+  type DevExSnapshot,
+  type DevExConsoleRow,
+  type DevExNetworkRow,
 } from "./server.js";
 export {
   ContentController,
