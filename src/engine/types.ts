@@ -28,15 +28,28 @@ export interface EngineStartConfig {
   linuxNoSandbox?: boolean;
 }
 
+/** Options for Engine.createBrowserContext. */
+export interface CreateBrowserContextOptions {
+  /**
+   * Ephemeral = isolated BrowserContext discarded on close (no durable
+   * cookies/storage for that mode). CDP contexts are always disposable;
+   * this flag documents product "save nothing" semantics and may set
+   * dispose-on-detach.
+   */
+  ephemeral?: boolean;
+}
+
 export interface Engine {
   start(config?: EngineStartConfig): Promise<void>;
   stop(): Promise<void>;
-  createBrowserContext(): Promise<Session>;
+  createBrowserContext(options?: CreateBrowserContextOptions): Promise<Session>;
   chromiumInfo(): ChromiumInfo;
 }
 
 export interface Session {
   readonly id: SessionId;
+  /** True when created with `{ ephemeral: true }` (v1 save-nothing context). */
+  readonly ephemeral: boolean;
   createTab(url?: string): Promise<Tab>;
   close(): Promise<void>;
 }
@@ -96,10 +109,15 @@ export interface Tab {
   navigate(url: string): Promise<void>;
   reload(ignoreCache?: boolean): Promise<void>;
   /**
-   * MVP no-cache toggle. See docs/ENGINE-SESSION.md for reload semantics.
-   * Sinks stay attached across the single forced reload.
+   * HTTP cache off + SW bypass/unregister for this tab.
+   * Product "save nothing" also swaps to an ephemeral BrowserContext —
+   * see host ContentController.setSaveNothing / docs/ENGINE-SESSION.md.
    */
   setNoCache(enabled: boolean): Promise<void>;
+  /** Best-effort history back. Returns false if no prior entry. */
+  back(): Promise<boolean>;
+  /** Best-effort history forward. Returns false if no forward entry. */
+  forward(): Promise<boolean>;
   /** Typed console + Network streams for DevEx. Does not clear across forced reload. */
   subscribe(handlers: TabSubscribeHandlers): Unsubscribe;
   /** Optional body fetch for HAR export (capped by DevEx). */
