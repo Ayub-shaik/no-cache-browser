@@ -13,7 +13,8 @@
     "start": "node dist/host/main.js",
     "dev": "npm run build && node dist/host/main.js",
     "test": "npm run build && node --test dist/tests/*.test.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "fetch-chromium": "node scripts/fetch-chromium-linux.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
