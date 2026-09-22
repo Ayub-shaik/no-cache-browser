@@ -62,7 +62,6 @@ test("SessionBuffer merges network events and keeps console across reload", () =
     encodedDataLength: 5,
   });
 
-  // Simulate traffic after forced reload — must still append, not reset.
   buf.appendConsole({
     timestamp: Date.parse("2026-09-21T10:00:02.000Z"),
     level: "log",
@@ -130,7 +129,6 @@ test("toSessionJson prefers explicit noCacheEnabled override", async () => {
     engine: { version: "1.0" },
     tab: { id: tab.id, url: "https://example.com", title: "Example", noCacheEnabled: true },
   });
-  // tab.noCacheEnabled is still false; export must stamp the product toggle.
   const json = await buf.toSessionJson(tab, {
     pageUrl: "https://example.com",
     noCacheEnabled: true,
