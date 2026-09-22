@@ -9,6 +9,11 @@ import type {
 import type { CdpConnection } from "./cdp.js";
 import { attachCaptureListeners } from "./tab-sinks.js";
 
+interface NavigationHistoryResult {
+  currentIndex: number;
+  entries: Array<{ id: number; url: string; userTypedURL?: string; title?: string }>;
+}
+
 export class ChromiumTab implements Tab {
   readonly id: TabId;
   private closed = false;
@@ -57,6 +62,16 @@ export class ChromiumTab implements Tab {
   async reload(ignoreCache = false): Promise<void> {
     this.assertOpen();
     await this.cdp.send("Page.reload", { ignoreCache }, this.cdpSessionId);
+  }
+
+  async back(): Promise<boolean> {
+    this.assertOpen();
+    return this.navigateHistory(-1);
+  }
+
+  async forward(): Promise<boolean> {
+    this.assertOpen();
+    return this.navigateHistory(1);
   }
 
   async setNoCache(enabled: boolean): Promise<void> {
@@ -130,6 +145,27 @@ export class ChromiumTab implements Tab {
     this.networkHandlers.clear();
     await this.cdp.send("Target.closeTarget", { targetId: this.id });
     this.onClosed();
+  }
+
+  private async navigateHistory(delta: number): Promise<boolean> {
+    try {
+      const history = await this.cdp.send<NavigationHistoryResult>(
+        "Page.getNavigationHistory",
+        {},
+        this.cdpSessionId,
+      );
+      const next = history.currentIndex + delta;
+      if (next < 0 || next >= history.entries.length) return false;
+      const entry = history.entries[next];
+      await this.cdp.send(
+        "Page.navigateToHistoryEntry",
+        { entryId: entry.id },
+        this.cdpSessionId,
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async unregisterServiceWorkersBestEffort(): Promise<void> {
