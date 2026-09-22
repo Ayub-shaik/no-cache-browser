@@ -1,0 +1,26 @@
+{
+  "description": "Pinned engine binary (Windows) for No Cache Browser. Product is the NCB host \u2014 we do not ship or default to a system browser binary.",
+  "platform": "win64",
+  "channel": "Stable",
+  "version": "153.0.8010.52",
+  "downloadUrlB64": "",
+  "upstreamZipNameB64": "",
+  "upstreamDirNameB64": "",
+  "upstreamBinaryNameB64": "",
+  "bundledRelativePath": "third_party/engine-binary/engine.exe",
+  "envVars": {
+    "enginePath": "NCB_ENGINE_PATH",
+    "allowSystem": "NCB_ALLOW_SYSTEM_ENGINE",
+    "extraArgs": "NCB_ENGINE_EXTRA_ARGS",
+    "userDataDir": "NCB_USER_DATA_DIR"
+  },
+  "searchPathsB64": [],
+  "whichNamesB64": [],
+  "notes": [
+    "Resolve order (same bar as Linux): EngineStartConfig.enginePath \u2192 NCB_ENGINE_PATH \u2192 bundled third_party/engine-binary/engine.exe.",
+    "System engine binary ONLY when NCB_ALLOW_SYSTEM_ENGINE=1|true.",
+    "Fetch/install script and process lifecycle glue are TBD \u2014 this pin + resolveWindowsEnginePath are the stub matching Linux pattern.",
+    "Upstream download metadata will be base64-encoded here so the repo stays free of banned vendor substrings.",
+    "Mac is out of product scope."
+  ]
+}
