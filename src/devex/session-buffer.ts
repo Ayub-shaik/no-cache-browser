@@ -290,12 +290,20 @@ export class SessionBuffer {
 
   async toSessionJson(
     tab: Tab,
-    opts?: { includeBodies?: boolean; pageUrl?: string; pageTitle?: string },
+    opts?: {
+      includeBodies?: boolean;
+      pageUrl?: string;
+      pageTitle?: string;
+      /** Prefer live product toggle when host provides it. */
+      noCacheEnabled?: boolean;
+    },
   ): Promise<Record<string, unknown>> {
     if (opts?.includeBodies !== false) {
       await this.fillBodies(tab);
     }
-    const noCacheEnabled = tab.noCacheEnabled;
+    const noCacheEnabled =
+      opts?.noCacheEnabled ??
+      (tab.noCacheEnabled || (this.meta?.tab.noCacheEnabled ?? false));
     const tabMeta: SessionTabMeta = {
       id: this.meta?.tab.id ?? tab.id,
       url: opts?.pageUrl ?? this.meta?.tab.url ?? "",
