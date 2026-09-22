@@ -28,7 +28,8 @@ src/
   devex/                  // never imports engine/
     index.ts
     session-buffer.ts
-    panel.ts              // CLI + retarget + noCacheEnabled stamp
+    panel.ts              // CLI (headless / NCB_UI=0) + retarget + export
+    export-files.ts       // shared session/HAR writers for CLI + in-app dock
   tests/
     smoke.test.ts
     session-buffer.test.ts
@@ -47,7 +48,7 @@ src/
 | `engine/save-nothing` | Pure ephemeral / transition helpers | CDP, UI |
 | `engine/runtime/` | Process spawn, CDP, Target/Page/Network/SW | UI, export schema |
 | `host/ui/` | NCB window HTML, WS control, tab strip, context swap | CDP imports |
-| `devex/` | SessionBuffer, panel, HAR/session export | CDP, engine process |
+| `devex/` | SessionBuffer, in-app dock (via host/ui), CLI panel, HAR/session export | CDP, engine process |
 | `host/main` | Process entry, wiring | Protocol details |
 
 ## Fill-in
@@ -55,6 +56,7 @@ src/
 - [x] Engine/Session/Tab launch + navigate
 - [x] setNoCache + Tab.subscribe sinks
 - [x] DevEx SessionBuffer + CLI panel + export
+- [ ] In-app DevEx dock (console / network / export) in NCB window
 - [x] Ephemeral BrowserContext + save-nothing toggle
 - [x] NCB product window (tabs / URL / Duplicate / toggle / status)
 - [ ] Windows pin fetch + process lifecycle (stub: `runtime/windows.ts`, `config/engine-windows.json`)
