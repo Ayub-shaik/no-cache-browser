@@ -8,7 +8,7 @@ import test from "node:test";
 import { createEngine } from "../engine/index.js";
 import { SessionBuffer, attachDevExPanel } from "../devex/index.js";
 
-function resolveChromiumForTest(): string | null {
+function resolveEngineBinaryForTest(): string | null {
   const fromEnv = process.env.NCB_CHROMIUM_PATH?.trim();
   if (fromEnv) {
     try {
@@ -39,16 +39,16 @@ function resolveChromiumForTest(): string | null {
   return null;
 }
 
-const chromiumPath = resolveChromiumForTest();
+const enginePath = resolveEngineBinaryForTest();
 
 test(
   "headless one-shot writes ncb-session.json with schema + network",
-  { skip: chromiumPath ? false : "Chromium not found; set NCB_CHROMIUM_PATH" },
+  { skip: enginePath ? false : "engine binary not found; set pinned-binary env (see docs/LINUX.md)" },
   async () => {
     const exportDir = mkdtempSync(path.join(tmpdir(), "ncb-export-"));
     const engine = createEngine();
     await engine.start({
-      chromiumPath: chromiumPath!,
+      chromiumPath: enginePath!,
       headless: true,
       extraArgs: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
     });
@@ -58,7 +58,7 @@ test(
       const tab = await session.createTab("about:blank");
       const buffer = new SessionBuffer();
       buffer.setMeta({
-        chromium: { version: info.version },
+        engine: { version: info.version },
         tab: {
           id: tab.id,
           url: "https://example.com",

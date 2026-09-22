@@ -1,5 +1,4 @@
 import type {
-  ChromiumInfo,
   ConsoleEvent,
   NetworkEvent,
   Tab,
@@ -24,8 +23,13 @@ export interface SessionTabMeta {
   noCacheEnabled: boolean;
 }
 
+export interface EngineVersionMeta {
+  version: string;
+}
+
 export interface SessionBufferMeta {
-  chromium?: Pick<ChromiumInfo, "version">;
+  /** Pinned engine binary version string for export metadata. */
+  engine?: EngineVersionMeta;
   tab: SessionTabMeta;
   appVersion?: string;
 }
@@ -306,8 +310,8 @@ export class SessionBuffer {
         name: "no-cache-browser",
         version: this.meta?.appVersion ?? "0.1.0",
       },
-      chromium: {
-        version: this.meta?.chromium?.version ?? "",
+      engine: {
+        version: this.meta?.engine?.version ?? "",
       },
       tab: tabMeta,
       capture: {
