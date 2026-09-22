@@ -4,28 +4,28 @@ Status: **frozen** (Lead architect product freeze). Companions: [ENGINE-SESSION.
 
 ## Product
 
-Developer-focused browser with **our own NCB chrome** (top-pane toggle), normal browsing plus optional **save-nothing** mode, thin inspection/logging, and easy export of debug sessions.
+Developer-focused browser with **our own NCB shell** (top-pane toggle), normal browsing plus optional **save-nothing** mode, thin inspection/logging, and easy export of debug sessions.
 
 Repo: `Ayub-shaik/no-cache-browser`
 
-**Not** a Chrome lookalike. **No** separate Incognito UI — the top **No-cache / Save nothing** toggle *is* that mode.
+**Not** a vendor-browser lookalike. **No** separate Incognito UI — the top **No-cache / Save nothing** toggle *is* that mode.
 
 ## Engine decision
 
-**MVP engine:** bundled Chromium driven by a thin host shell over **CDP**.
+**MVP engine:** bundled/pinned engine binary driven by a thin host shell over **CDP**.
 
 | Option | Verdict |
 |--------|---------|
 | System WebView | Out — insufficient session control |
 | Electron | Out — Node + multi-process tax |
 | CEF | Fallback if packaging cost blows up |
-| **Bundled Chromium + CDP shell** | **Chosen** |
+| **Pinned engine binary + CDP shell** | **Chosen** |
 
-Trade-offs accepted: ~100MB+ download; we own Chromium version bumps.
+Trade-offs accepted: large download; we own engine version bumps.
 
 ## MVP product freezes
 
-1. **Our chrome:** NCB-branded top pane (URL, nav, **Duplicate**, save-nothing toggle, status). Content + shell Chromium targets OK. Duplicate = same BrowserContext (`Session.createTab`).
+1. **Our shell:** NCB-branded top pane (URL, nav, **Duplicate**, save-nothing toggle, status). Content + shell engine targets OK. Duplicate = same BrowserContext (`Session.createTab`).
 2. **Save-nothing (v1):** ephemeral BrowserContext (cookies/storage/disk don’t persist across that mode) + HTTP cache off + SW bypass (`Network.setCacheDisabled` + **`Network.setBypassServiceWorker`** + best-effort unregister). Toggle OFF = normal (non-ephemeral) browsing.
 3. **Default launch** = normal browsing.
 4. **Post-MVP:** mid-session wipe of already-written storage, deep bfcache, element inspector, Win/mac.
@@ -36,20 +36,20 @@ Trade-offs accepted: ~100MB+ download; we own Chromium version bumps.
 
 ## Architecture principles
 
-- Thin host; Chromium does rendering/networking.
-- `Engine` / `Session` / `Tab` — **do not leak raw CDP** (CDP only under `src/engine/chromium/`).
+- Thin host; the engine does rendering/networking.
+- `Engine` / `Session` / `Tab` — **do not leak raw CDP** (CDP only under `src/engine/runtime/`).
 - Ephemeral vs normal BrowserContext for save-nothing isolation.
 - DevEx consumes console + Network streams into an in-memory session buffer; export reads that buffer.
-- Prefer reuse (Chromium + CDP) over custom engines or DevTools frontends.
+- Prefer reuse (pinned engine + CDP) over custom engines or DevTools frontends.
 
 ## Logical components
 
 ```
 Host (Linux)
-  ├─ NCB shell (HTTP + WS top chrome)
-  ├─ ContentController (normal ↔ ephemeral swap + navigate)
+  ├─ NCB shell (HTTP + WS top pane)
+  ├─ ContentController (normal ↔ ephemeral swap + navigate + Duplicate)
   ├─ Engine (interface)
-  │     └─ ChromiumSession (CDP): launch, contexts, tabs, cache, SW, events
+  │     └─ RuntimeSession (CDP): launch, contexts, tabs, cache, SW, events
   └─ DevEx panel (CLI)
         ├─ SessionBuffer (console + network)
         └─ HAR / session export (+ noCacheEnabled metadata)
@@ -71,10 +71,10 @@ Exact method names and toggle semantics: [ENGINE-SESSION.md](./ENGINE-SESSION.md
 ## Implementation sequence
 
 1. Scaffolding — done.
-2. Host + Chromium lifecycle — done.
+2. Host + engine lifecycle — done.
 3. No-cache / save-nothing (ephemeral + cache/SW) — this freeze.
 4. DevEx capture + export — done (retarget on context swap).
-5. NCB shell chrome — this freeze.
+5. NCB shell — this freeze.
 6. Linux hardening — ongoing.
 7. Later — Windows/macOS; post-MVP storage/bfcache/inspector.
 
@@ -82,7 +82,7 @@ Exact method names and toggle semantics: [ENGINE-SESSION.md](./ENGINE-SESSION.md
 
 | Area | Owner |
 |------|--------|
-| Engine, sessions, tabs, no-cache/SW, Chromium packaging | Browser Engineer |
-| NCB shell HTML / control plane wiring | Browser Engineer (host chrome) |
+| Engine, sessions, tabs, no-cache/SW, engine packaging | Browser Engineer |
+| NCB shell HTML / control plane wiring | Browser Engineer (host shell) |
 | Console/network buffer, panel, HAR/session export | DevEx Engineer |
 | Requirements, freezes, scope control, review | Lead architect |
