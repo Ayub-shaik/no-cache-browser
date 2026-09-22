@@ -4,7 +4,7 @@ Owner: Browser Engineer
 
 ## Engine binary dependency (not a system browser)
 
-No Cache Browser is a thin host over CDP. It does **not** ship a vendor browser as the product, and it does **not** default to whatever browser binary is installed on the system.
+No Cache Browser is a host over CDP. It does **not** ship a vendor browser as the product, and it does **not** default to whatever browser binary is installed on the system.
 
 The default engine binary is a **pinned Linux build** declared in [`config/engine-linux.json`](../config/engine-linux.json) and fetched into gitignored `third_party/engine-binary/` via:
 
@@ -48,18 +48,18 @@ export NCB_ALLOW_SYSTEM_ENGINE=1
 
 Use only when you intentionally want a host OS browser binary. This is **off by default**.
 
-## NCB shell + content windows
+## NCB product window + content
 
 Interactive `npm start` launches one engine process and two targets:
 
 | Target | Role |
 |--------|------|
-| Shell | Navigates to `http://127.0.0.1:<port>/` — **our** NCB top pane (title NCB). Not a vendor UI clone. |
+| NCB window | Navigates to `http://127.0.0.1:<port>/` — **our** product UI (title NCB): tabs, address, nav, save-nothing. |
 | Content | Page surface in a normal or ephemeral `BrowserContext`. **Duplicate** adds another tab in that same context. |
 
 Prefer **app-style / reduced browser UI** for the content surface when practical (e.g. host may pass `--new-window` / future `--app=` style flags via `extraArgs`). Do **not** present a system browser as the product brand.
 
-Headless (`NCB_HEADLESS=1`) skips shell windows entirely. `NCB_SHELL=0` skips shell but keeps the content target + DevEx CLI.
+Headless (`NCB_HEADLESS=1`) skips the NCB window entirely. `NCB_UI=0` (legacy `NCB_SHELL=0`) skips the window but keeps the content target + DevEx CLI.
 
 ## Sandbox flags
 
@@ -85,4 +85,4 @@ No download manager UI. Engine-handled downloads continue after a content tab cl
 
 ## Out of scope (this slice)
 
-Windows/macOS launch, installer packaging polish, mid-session storage wipe, deep bfcache, element inspector, download manager.
+Full Windows fetch/install (see [WINDOWS.md](./WINDOWS.md) stub), Mac (out), installer packaging polish, mid-session storage wipe, deep bfcache, element inspector, download manager.

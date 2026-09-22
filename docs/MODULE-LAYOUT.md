@@ -17,12 +17,13 @@ src/
       tab-impl.ts         // setNoCache, Network.setBypassServiceWorker, back/forward
       tab-sinks.ts
       linux.ts
+      windows.ts          // Windows resolve stub (same order as Linux)
   host/
-    main.ts               // engine → shell server → content + DevEx
-    shell/
-      server.ts           // local HTTP + WS control plane
-      controller.ts       // ContentController.setSaveNothing + duplicateTab (same context)
-      static/index.html   // NCB-branded top pane (title NCB)
+    main.ts               // engine → NCB window server → content + DevEx
+    ui/
+      server.ts           // local HTTP + WS control plane (NCB window)
+      controller.ts       // ContentController.setSaveNothing + duplicate/activate/close tab
+      static/index.html   // NCB product window (tabs + address + toggle)
       index.ts
   devex/                  // never imports engine/
     index.ts
@@ -35,6 +36,7 @@ src/
     linux-resolve.test.ts
     save-nothing.test.ts
     duplicate-tab.test.ts
+    windows-resolve.test.ts
 ```
 
 ## Ownership
@@ -44,7 +46,7 @@ src/
 | `engine/types` | Lifecycle API + sink shapes | CDP types |
 | `engine/save-nothing` | Pure ephemeral / transition helpers | CDP, UI |
 | `engine/runtime/` | Process spawn, CDP, Target/Page/Network/SW | UI, export schema |
-| `host/shell/` | NCB shell HTML, WS control, context swap | CDP imports |
+| `host/ui/` | NCB window HTML, WS control, tab strip, context swap | CDP imports |
 | `devex/` | SessionBuffer, panel, HAR/session export | CDP, engine process |
 | `host/main` | Process entry, wiring | Protocol details |
 
@@ -54,4 +56,5 @@ src/
 - [x] setNoCache + Tab.subscribe sinks
 - [x] DevEx SessionBuffer + CLI panel + export
 - [x] Ephemeral BrowserContext + save-nothing toggle
-- [x] NCB shell top pane (URL / Duplicate / toggle / status)
+- [x] NCB product window (tabs / URL / Duplicate / toggle / status)
+- [ ] Windows pin fetch + process lifecycle (stub: `runtime/windows.ts`, `config/engine-windows.json`)
