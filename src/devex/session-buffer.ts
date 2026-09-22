@@ -73,6 +73,7 @@ export class SessionBuffer {
   private readonly networkById = new Map<string, PendingHarEntry>();
   private readonly networkOrder: string[] = [];
   private meta: SessionBufferMeta | null = null;
+  private readonly listeners = new Set<() => void>();
 
   constructor(opts?: { consoleCap?: number; bodyCap?: number }) {
     this.consoleCap = opts?.consoleCap ?? DEFAULT_CONSOLE_CAP;
@@ -82,6 +83,19 @@ export class SessionBuffer {
 
   setMeta(meta: SessionBufferMeta): void {
     this.meta = meta;
+    this.emit();
+  }
+
+  /** UI / host subscribe to buffer mutations (append/clear/setMeta). */
+  onUpdate(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private emit(): void {
+    for (const listener of this.listeners) {
+      try { listener(); } catch { /* ignore listener errors */ }
+    }
   }
 
   getMeta(): SessionBufferMeta | null {
@@ -93,6 +107,7 @@ export class SessionBuffer {
     this.consoleEntries = [];
     this.networkById.clear();
     this.networkOrder.length = 0;
+    this.emit();
   }
 
   getConsoleEntries(): readonly ConsoleEntry[] {
@@ -101,6 +116,26 @@ export class SessionBuffer {
 
   getNetworkRequestIds(): readonly string[] {
     return this.networkOrder;
+  }
+
+  /** Compact network rows for the in-app DevEx list. */
+  getNetworkSummary(): Array<{
+    requestId: string;
+    method: string;
+    url: string;
+    status: number | null;
+    errorText?: string;
+  }> {
+    return this.networkOrder.map((id) => {
+      const p = this.networkById.get(id)!;
+      return {
+        requestId: id,
+        method: p.method,
+        url: p.url,
+        status: p.status ?? null,
+        errorText: p.errorText,
+      };
+    });
   }
 
   appendConsole(event: ConsoleEvent): ConsoleEntry {
@@ -116,6 +151,7 @@ export class SessionBuffer {
     if (this.consoleEntries.length > this.consoleCap) {
       this.consoleEntries.splice(0, this.consoleEntries.length - this.consoleCap);
     }
+    this.emit();
     return entry;
   }
 
@@ -132,6 +168,7 @@ export class SessionBuffer {
         url: event.url,
         requestHeaders: { ...event.headers },
       });
+      this.emit();
       return;
     }
 
@@ -154,12 +191,14 @@ export class SessionBuffer {
       pending.statusText = event.statusText;
       pending.responseHeaders = { ...event.headers };
       pending.mimeType = event.mimeType;
+      this.emit();
       return;
     }
 
     if (event.kind === "finished") {
       pending.endMs = event.timestamp;
       pending.encodedDataLength = event.encodedDataLength;
+      this.emit();
       return;
     }
 
@@ -169,6 +208,7 @@ export class SessionBuffer {
       if (pending.status === undefined) pending.status = 0;
       pending.statusText = pending.statusText ?? "";
     }
+    this.emit();
   }
 
   /**

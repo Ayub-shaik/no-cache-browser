@@ -1,8 +1,8 @@
 import { createInterface } from "node:readline";
-import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Tab, Unsubscribe } from "../engine/types.js";
 import { SessionBuffer } from "./session-buffer.js";
+import { writeHarExport, writeSessionExport } from "./export-files.js";
 
 export interface DevExPanelOptions {
   tab: Tab;
@@ -26,8 +26,7 @@ export interface DevExPanelOptions {
 }
 
 /**
- * Thin CLI DevEx panel: live console/network lines + export / nocache commands.
- * Not a full DevTools UI. Does not expand beyond wiring toggle into buffer meta.
+ * CLI DevEx panel (headless / NCB_UI=0). Product path is the in-app NCB DevEx dock.
  */
 export function attachDevExPanel(opts: DevExPanelOptions): {
   stop: () => void;
@@ -93,30 +92,23 @@ export function attachDevExPanel(opts: DevExPanelOptions): {
   }
 
   async function exportSession(): Promise<string> {
-    await mkdir(exportDir, { recursive: true });
-    const json = await opts.buffer.toSessionJson(tab, {
+    const file = await writeSessionExport(opts.buffer, tab, {
+      exportDir,
       pageUrl: opts.getPageUrl(),
       pageTitle: opts.getPageTitle?.() ?? opts.getPageUrl(),
-      includeBodies: true,
       noCacheEnabled: noCacheFlag(),
     });
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const file = path.join(exportDir, `session-${stamp}.ncb-session.json`);
-    await writeFile(file, JSON.stringify(json, null, 2), "utf8");
+    console.log(`[devex] wrote ${file}`);
     return file;
   }
 
   async function exportHar(): Promise<string> {
-    await mkdir(exportDir, { recursive: true });
-    await opts.buffer.fillBodies(tab);
-    const har = {
-      log: opts.buffer.toHar({
-        pageTitle: opts.getPageTitle?.() ?? opts.getPageUrl(),
-      }),
-    };
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const file = path.join(exportDir, `network-${stamp}.har`);
-    await writeFile(file, JSON.stringify(har, null, 2), "utf8");
+    const file = await writeHarExport(opts.buffer, tab, {
+      exportDir,
+      pageUrl: opts.getPageUrl(),
+      pageTitle: opts.getPageTitle?.() ?? opts.getPageUrl(),
+    });
+    console.log(`[devex] wrote ${file}`);
     return file;
   }
 
