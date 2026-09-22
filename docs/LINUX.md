@@ -48,6 +48,19 @@ export NCB_ALLOW_SYSTEM_CHROMIUM=1
 
 Use only when you intentionally want the host OS browser. This is **off by default**.
 
+## NCB shell + content windows
+
+Interactive `npm start` launches one Chromium process and two targets:
+
+| Target | Role |
+|--------|------|
+| Shell | Navigates to `http://127.0.0.1:<port>/` — **our** NCB top chrome (title NCB). Not a Chrome UI clone. |
+| Content | Page surface in a normal or ephemeral `BrowserContext`. **Duplicate** adds another tab in that same context. |
+
+Prefer **app-style / reduced browser chrome** for the content surface when practical (e.g. host may pass `--new-window` / future `--app=` style flags via `extraArgs`). Do **not** present system Google Chrome as the product brand.
+
+Headless (`NCB_HEADLESS=1`) skips shell windows entirely. `NCB_SHELL=0` skips shell but keeps the content target + DevEx CLI.
+
 ## Sandbox flags
 
 Applied automatically on Linux:
@@ -64,7 +77,12 @@ Prefer a real sandbox on a normal desktop user session. Extra flags still go thr
 - Ephemeral profile: temp dir under `os.tmpdir()` (default)
 - Persistent profile: `NCB_USER_DATA_DIR` or `config.userDataDir` (XDG-friendly if you set e.g. `$XDG_CACHE_HOME/no-cache-browser/chromium`)
 - Debugging port: ephemeral free port unless `debuggingPort` is set
+- Save-nothing mode: separate CDP BrowserContext (disposed on toggle OFF / close) — not the same as the process user-data-dir
+
+## Downloads
+
+No download manager UI. Chromium-handled downloads continue after a content tab closes while the NCB process remains open; quitting NCB stops them.
 
 ## Out of scope (this slice)
 
-Windows/macOS launch, installer packaging polish, chrome-less shell UI.
+Windows/macOS launch, installer packaging polish, mid-session storage wipe, deep bfcache, element inspector, download manager.
