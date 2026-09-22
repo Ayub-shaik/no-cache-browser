@@ -81,7 +81,7 @@ Exact method names and toggle semantics: [ENGINE-SESSION.md](./ENGINE-SESSION.md
 ## Ownership
 
 | Area | Owner |
-|------|--------|
+|------|-------|
 | Engine, sessions, tabs, no-cache/SW, engine packaging | Browser Engineer |
 | NCB shell HTML / control plane wiring | Browser Engineer (host shell) |
 | Console/network buffer, panel, HAR/session export | DevEx Engineer |
