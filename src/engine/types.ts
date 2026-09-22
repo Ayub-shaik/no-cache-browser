@@ -11,7 +11,7 @@ export interface ChromiumInfo {
 }
 
 export interface EngineStartConfig {
-  /** Absolute path to Chromium/Chrome. See Linux resolve order in docs/LINUX.md. */
+  /** Absolute path to Chromium (overrides pin/bundled). System Chrome is not default — see docs/LINUX.md. */
   chromiumPath?: string;
   /** Extra Chromium flags (appended after Linux defaults). */
   extraArgs?: string[];

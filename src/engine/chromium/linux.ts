@@ -3,11 +3,11 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import type { EngineStartConfig } from "../types.js";
 
+/** Opt-in system Chromium/Chrome allowlist (used only when allowed). */
 const DEFAULT_SEARCH_PATHS = [
   "/usr/bin/chromium",
   "/usr/bin/chromium-browser",
-  "/usr/bin/google-chrome-stable",
-  "/usr/bin/google-chrome",
+  "/snap/bin/chromium",
 ];
 
 function isExecutable(filePath: string): boolean {
@@ -23,6 +23,19 @@ function which(bin: string): string | null {
   const r = spawnSync("which", [bin], { encoding: "utf8" });
   if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
   return null;
+}
+
+function envTruthy(name: string): boolean {
+  const v = process.env[name]?.trim();
+  return v === "1" || v?.toLowerCase() === "true";
+}
+
+/**
+ * System Chromium/Chrome is used only when opted in.
+ * Default is pinned/bundled CfT — not the host's Google Chrome install.
+ */
+export function systemChromiumAllowed(): boolean {
+  return envTruthy("NCB_ALLOW_SYSTEM_CHROMIUM");
 }
 
 function loadPinSearchPaths(): string[] {
@@ -44,26 +57,60 @@ function loadPinSearchPaths(): string[] {
   return DEFAULT_SEARCH_PATHS;
 }
 
-/** Bundled Chromium path hook (gitignored third_party). */
+/** Bundled Chromium path hook (gitignored third_party; populate via npm run fetch-chromium). */
 export function bundledChromiumPath(): string {
   return join(process.cwd(), "third_party", "chromium", "chrome");
 }
 
+function chromiumNotFoundError(): Error {
+  return new Error(
+    [
+      "Chromium not found for No Cache Browser.",
+      "Default resolve does not use system Google Chrome/Chromium.",
+      "Fix one of:",
+      "  1) npm run fetch-chromium   # installs pinned CfT into third_party/chromium/",
+      "  2) export NCB_CHROMIUM_PATH=/path/to/chrome  # bring-your-own binary",
+      "  3) pass EngineStartConfig.chromiumPath",
+      "Opt-in only: NCB_ALLOW_SYSTEM_CHROMIUM=1 to search system Chromium paths.",
+      "See docs/LINUX.md.",
+    ].join("\n"),
+  );
+}
+
 /**
- * Resolve Chromium binary for Linux (pinned order).
+ * Resolve Chromium binary for Linux.
+ *
+ * Order (default — system NOT used):
+ * 1. EngineStartConfig.chromiumPath
+ * 2. NCB_CHROMIUM_PATH
+ * 3. Bundled third_party/chromium/chrome
+ * 4. System paths / PATH — only if NCB_ALLOW_SYSTEM_CHROMIUM=1|true
+ *
  * See docs/LINUX.md.
  */
 export function resolveLinuxChromiumPath(config?: EngineStartConfig): string {
-  const explicit = config?.chromiumPath?.trim() || process.env.NCB_CHROMIUM_PATH?.trim();
-  if (explicit) {
-    if (!isExecutable(explicit)) {
-      throw new Error(`Chromium not executable at ${explicit}`);
+  const fromConfig = config?.chromiumPath?.trim();
+  if (fromConfig) {
+    if (!isExecutable(fromConfig)) {
+      throw new Error(`Chromium not executable at ${fromConfig}`);
     }
-    return explicit;
+    return fromConfig;
+  }
+
+  const fromEnv = process.env.NCB_CHROMIUM_PATH?.trim();
+  if (fromEnv) {
+    if (!isExecutable(fromEnv)) {
+      throw new Error(`Chromium not executable at ${fromEnv}`);
+    }
+    return fromEnv;
   }
 
   const bundled = bundledChromiumPath();
   if (isExecutable(bundled)) return bundled;
+
+  if (!systemChromiumAllowed()) {
+    throw chromiumNotFoundError();
+  }
 
   for (const candidate of loadPinSearchPaths()) {
     if (isExecutable(candidate)) return candidate;
@@ -74,9 +121,7 @@ export function resolveLinuxChromiumPath(config?: EngineStartConfig): string {
     if (found && isExecutable(found)) return found;
   }
 
-  throw new Error(
-    "Chromium not found. Set NCB_CHROMIUM_PATH, install chromium/chrome, or place a binary at third_party/chromium/chrome. See docs/LINUX.md.",
-  );
+  throw chromiumNotFoundError();
 }
 
 function looksLikeContainer(): boolean {
