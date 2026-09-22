@@ -98,6 +98,7 @@ export function attachDevExPanel(opts: DevExPanelOptions): {
       pageUrl: opts.getPageUrl(),
       pageTitle: opts.getPageTitle?.() ?? opts.getPageUrl(),
       includeBodies: true,
+      noCacheEnabled: noCacheFlag(),
     });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     const file = path.join(exportDir, `session-${stamp}.ncb-session.json`);
