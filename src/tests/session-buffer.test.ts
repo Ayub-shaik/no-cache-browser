@@ -15,6 +15,8 @@ function fakeTab(overrides?: Partial<Tab>): Tab {
     setNoCache: async (enabled: boolean) => {
       noCache = enabled;
     },
+    back: async () => false,
+    forward: async () => false,
     subscribe: () => () => undefined,
     getNetworkResponseBody: async () => ({ body: "hello", base64Encoded: false }),
     close: async () => undefined,

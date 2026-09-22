@@ -1,40 +1,57 @@
 # Linux module layout
 
-Status: **MVP implementation in progress** — TypeScript/Node 20+ host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md), [ARCHITECTURE.md](./ARCHITECTURE.md), and [EXPORT-SCHEMA.md](./EXPORT-SCHEMA.md).
+Status: **MVP** — TypeScript/Node 20+ host. Aligns with [ENGINE-SESSION.md](./ENGINE-SESSION.md), [ARCHITECTURE.md](./ARCHITECTURE.md), and [EXPORT-SCHEMA.md](./EXPORT-SCHEMA.md).
 
 ## Tree
 
 ```text
 src/
   engine/
-    types.ts              // Engine / Session / Tab interfaces (no CDP)
+    types.ts              // Engine / Session / Tab (no CDP)
+    save-nothing.ts       // pure ephemeral / toggle planning helpers
     index.ts              // public exports + createEngine()
     chromium/             // ONLY place that speaks CDP
       process.ts
       cdp.ts
-      adapter.ts
+      adapter.ts          // createBrowserContext({ ephemeral })
+      tab-impl.ts         // setNoCache, Network.setBypassServiceWorker, back/forward
+      tab-sinks.ts
+      linux.ts
   host/
-    main.ts               // Linux CLI entry + DevEx panel wiring
-  devex/                  // DevEx Engineer — sinks only, never imports chromium/
+    main.ts               // engine → shell server → content + DevEx
+    shell/
+      server.ts           // local HTTP + WS control plane
+      controller.ts       // ContentController.setSaveNothing + duplicateTab (same context)
+      static/index.html   // NCB-branded top chrome (title NCB)
+      index.ts
+  devex/                  // never imports chromium/
     index.ts
-    session-buffer.ts     // in-memory console + network; survives no-cache reload
-    panel.ts              // thin CLI panel + local export
+    session-buffer.ts
+    panel.ts              // CLI + retarget + noCacheEnabled stamp
   tests/
     smoke.test.ts
     session-buffer.test.ts
+    export-headless.test.ts
+    linux-resolve.test.ts
+    save-nothing.test.ts
+    duplicate-tab.test.ts
 ```
 
 ## Ownership
 
 | Module | Owns | Must not |
 |--------|------|----------|
-| `engine/types` | Lifecycle API + sink event shapes | CDP types |
+| `engine/types` | Lifecycle API + sink shapes | CDP types |
+| `engine/save-nothing` | Pure ephemeral / transition helpers | CDP, UI |
 | `engine/chromium/` | Process spawn, CDP, Target/Page/Network/SW | UI, export schema |
+| `host/shell/` | NCB chrome HTML, WS control, context swap | CDP imports |
 | `devex/` | SessionBuffer, panel, HAR/session export | CDP, Chromium process |
-| `host/` | Process entry, wiring | Protocol details |
+| `host/main` | Process entry, wiring | Protocol details |
 
 ## Fill-in
 
-- [x] Step 2: Engine/Session/Tab launch + navigate
-- [x] Step 3–4: setNoCache + Tab.subscribe sinks
-- [x] DevEx: SessionBuffer + CLI panel + export
+- [x] Engine/Session/Tab launch + navigate
+- [x] setNoCache + Tab.subscribe sinks
+- [x] DevEx SessionBuffer + CLI panel + export
+- [x] Ephemeral BrowserContext + save-nothing toggle
+- [x] NCB shell top chrome (URL / Duplicate / toggle / status)
