@@ -1,59 +1,55 @@
 import { strict as assert } from "node:assert";
-import { spawnSync } from "node:child_process";
-import { accessSync, constants, readdirSync, readFileSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
+import { accessSync, constants, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { createEngine } from "../engine/index.js";
 import { SessionBuffer, attachDevExPanel } from "../devex/index.js";
 
-function resolveEngineBinaryForTest(): string | null {
-  const fromEnv = process.env.NCB_CHROMIUM_PATH?.trim();
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+function resolveEngineBinaryForTest(): string | undefined {
+  const fromEnv = process.env.NCB_ENGINE_PATH?.trim();
   if (fromEnv) {
     try {
       accessSync(fromEnv, constants.X_OK);
       return fromEnv;
     } catch {
-      return null;
+      return undefined;
     }
   }
-  const candidates = [
-    "/usr/bin/chromium",
-    "/usr/bin/chromium-browser",
-    "/usr/bin/google-chrome",
-    "/usr/bin/google-chrome-stable",
-  ];
-  for (const c of candidates) {
-    try {
-      accessSync(c, constants.X_OK);
-      return c;
-    } catch {
-      /* try next */
-    }
+  const bundled = path.join(repoRoot, "third_party/engine-binary/engine");
+  try {
+    accessSync(bundled, constants.X_OK);
+    return bundled;
+  } catch {
+    return undefined;
   }
-  for (const name of ["chromium", "chromium-browser", "google-chrome"]) {
-    const r = spawnSync("which", [name], { encoding: "utf8" });
-    if (r.status === 0 && r.stdout.trim()) return r.stdout.trim();
-  }
-  return null;
 }
 
 const enginePath = resolveEngineBinaryForTest();
+const allowSystem = process.env.NCB_ALLOW_SYSTEM_ENGINE === "1" || process.env.NCB_ALLOW_SYSTEM_ENGINE === "true";
+const canRun = Boolean(enginePath) || allowSystem;
 
 test(
   "headless one-shot writes ncb-session.json with schema + network",
-  { skip: enginePath ? false : "engine binary not found; set pinned-binary env (see docs/LINUX.md)" },
+  {
+    skip: canRun
+      ? false
+      : "engine binary not found; set NCB_ENGINE_PATH, run npm run fetch-engine-binary, or NCB_ALLOW_SYSTEM_ENGINE=1",
+  },
   async () => {
     const exportDir = mkdtempSync(path.join(tmpdir(), "ncb-export-"));
     const engine = createEngine();
     await engine.start({
-      chromiumPath: enginePath!,
+      enginePath,
       headless: true,
-      extraArgs: ["--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage"],
+      linuxNoSandbox: true,
+      extraArgs: ["--disable-gpu", "--disable-dev-shm-usage"],
     });
     try {
-      const info = engine.chromiumInfo();
+      const info = engine.engineBinaryInfo();
       const session = await engine.createBrowserContext();
       const tab = await session.createTab("about:blank");
       const buffer = new SessionBuffer();
@@ -77,7 +73,6 @@ test(
         interactive: false,
       });
       await tab.navigate("https://example.com");
-      // brief settle for network events
       await new Promise((r) => setTimeout(r, 500));
       const file = await panel.exportSession();
       panel.stop();
@@ -88,11 +83,13 @@ test(
       const json = JSON.parse(readFileSync(file, "utf8")) as {
         schemaVersion: number;
         tab: { noCacheEnabled: boolean };
+        engine: { version: string };
         console: unknown[];
         har: { entries?: unknown[] };
       };
       assert.equal(json.schemaVersion, 1);
       assert.equal(typeof json.tab.noCacheEnabled, "boolean");
+      assert.ok(json.engine.version.length > 0);
       assert.ok(Array.isArray(json.console));
       assert.ok(Array.isArray(json.har.entries));
       assert.ok((json.har.entries?.length ?? 0) >= 1);
