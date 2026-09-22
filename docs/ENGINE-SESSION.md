@@ -1,16 +1,16 @@
 # Engine / Session boundary + CDP mapping (MVP)
 
-Status: **approved** — aligns with [ARCHITECTURE.md](./ARCHITECTURE.md). Lead architect freeze (product shell + save-nothing).
+Status: **approved** — aligns with [ARCHITECTURE.md](./ARCHITECTURE.md). Lead architect freeze (NCB product window + save-nothing).
 
-Owner: Browser Engineer (engine) / host shell
+Owner: Browser Engineer (engine) / host UI
 
 ## Goals
 
 - Keep a small host surface; engine owns rendering and networking.
 - Hide raw CDP behind `Engine` / `Session` / `Tab` so DevEx and UI never call protocol methods directly.
-- Support Linux-first packaging of bundled engine, with the same interfaces usable later on Windows/macOS.
+- Support Linux + Windows packaging of bundled engine (Mac out), with the same Engine/Session/Tab interfaces.
 - Implement v1 **save nothing** as: **ephemeral BrowserContext** + HTTP cache off + service workers bypassed/unregistered.
-- Product shell is **our own** NCB top pane (not a vendor-browser lookalike; no separate Incognito — the toggle *is* that mode).
+- Product UI is **our own** NCB window (not a vendor-browser lookalike; no separate Incognito — the toggle *is* that mode).
 
 ## Types (logical)
 
@@ -43,7 +43,7 @@ Tab
 - **ON:** swap to `createBrowserContext({ ephemeral: true })`, restore URL, `Tab.setNoCache(true)` (cache/SW + one ignoreCache reload if document already committed).
 - **OFF:** swap back to normal (non-ephemeral) context, restore URL, cache/SW clear on the new tab; **no** auto-reload.
 
-**Rule:** only `RuntimeEngine` (or a future CEF adapter) may hold a CDP client. UI and DevEx depend on these interfaces + event sinks, not on CDP domains. Host/shell must not import CDP types.
+**Rule:** only `RuntimeEngine` (or a future CEF adapter) may hold a CDP client. UI and DevEx depend on these interfaces + event sinks, not on CDP domains. Host UI must not import CDP types.
 
 ## Isolation model
 
@@ -57,7 +57,7 @@ Ephemeral contexts are always disposed on close (CDP `disposeBrowserContext`; `d
 
 ## Save-nothing / no-cache toggle (v1) — deterministic semantics
 
-Product name in the NCB shell: **No-cache / Save nothing**.
+Product name in the NCB window: **No-cache / Save nothing**.
 
 ### Toggle ON (`setSaveNothing(true)`)
 
@@ -81,7 +81,7 @@ Product name in the NCB shell: **No-cache / Save nothing**.
 
 ### `Tab.setNoCache` alone
 
-Still available for tests/headless cache+SW without forcing a context swap. Interactive shell and DevEx CLI `nocache on|off` go through **save-nothing** when the host controller is wired.
+Still available for tests/headless cache+SW without forcing a context swap. Interactive NCB window and DevEx CLI `nocache on|off` go through **save-nothing** when the host controller is wired.
 
 ### Capture across forced reload / context swap
 
@@ -100,7 +100,7 @@ Forced reload and context swap must **not** clear DevEx `SessionBuffer`. Panel m
 - Mid-session wipe of already-written storage
 - Deep bfcache control
 - Element inspector
-- Windows / macOS packaging
+- Full Windows fetch/install (stub landed); Mac out
 - `Network.clearBrowserCache`, `Storage.clearDataForOrigin`, cookie/localStorage/IDB clearing UX
 
 ## CDP method map
@@ -136,14 +136,14 @@ Forced reload and context swap must **not** clear DevEx `SessionBuffer`. Panel m
 
 DevEx owns `SessionBuffer` and HAR shaping; Engine only forwards typed events. Export stamps **`noCacheEnabled`** clearly (DevEx owns the stamp).
 
-## NCB shell (host UI)
+## NCB product window (host UI)
 
 - Tiny local HTTP server serves NCB-branded HTML (title **NCB**).
 - Top pane: URL, Go/Back/Forward, **Duplicate**, **No-cache / Save nothing** toggle, status.
 - **Duplicate:** `Session.createTab` in the *same* BrowserContext (cookies/login carry over). Copies current URL (title when known). Does **not** create a new BrowserContext.
-- Control plane: WebSocket shell page → host controller (navigate + toggle + duplicate).
-- Launch: content target + shell target (`http://127.0.0.1:<port>/`). Prefer reduced browser UI flags for the content surface when practical (see LINUX.md). Do **not** present a system browser as the product.
-- Headless: skip shell windows; `setNoCache` / tests still work.
+- Control plane: WebSocket NCB window → host controller (navigate + toggle + duplicate + tab strip).
+- Launch: content target + NCB window target (`http://127.0.0.1:<port>/`). Prefer reduced browser UI flags for the content surface when practical (see LINUX.md). Do **not** present a system browser as the product.
+- Headless: skip NCB window; `setNoCache` / tests still work.
 
 ## Downloads (documented only — no manager this slice)
 
@@ -161,11 +161,11 @@ DevEx owns `SessionBuffer` and HAR shaping; Engine only forwards typed events. E
 - Element inspector / DOM/CSS domains
 - Full DevTools frontend
 - Separate Incognito UI (toggle *is* save-nothing)
-- Windows/macOS launch flags (stub behind `Engine.start` later)
+- Windows launch flags / process glue (stub behind `Engine.start` later; see WINDOWS.md)
 
 ## Acceptance
 
-- Interactive start shows NCB-branded shell with working top toggle.
+- Interactive start shows NCB product window with tab strip and working save-nothing toggle.
 - Toggle ON uses ephemeral BrowserContext + cache/SW; OFF returns to normal context.
-- No vendor-browser lookalike branding in *our* shell HTML.
+- No vendor-browser lookalike branding in *our* NCB window HTML.
 - Docs match freeze; SW method is `Network.setBypassServiceWorker`.
