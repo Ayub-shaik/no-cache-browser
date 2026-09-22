@@ -59,7 +59,7 @@ test("duplicateTab uses Session.createTab — not a new BrowserContext", async (
       contextCreates += 1;
       return session;
     },
-    chromiumInfo: () => ({
+    engineBinaryInfo: () => ({
       version: "test",
       executablePath: "/bin/false",
       webSocketDebuggerUrl: "ws://127.0.0.1:0",
