@@ -2,14 +2,14 @@
   "name": "no-cache-browser",
   "version": "0.1.0",
   "private": true,
-  "description": "Developer-focused browser with NCB shell and save-nothing (ephemeral) no-cache mode",
+  "description": "Developer-focused browser with NCB product window and save-nothing (ephemeral) no-cache mode",
   "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && mkdir -p dist/host/shell/static && cp -f src/host/shell/static/index.html dist/host/shell/static/index.html",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/host/ui/static && cp -f src/host/ui/static/index.html dist/host/ui/static/index.html",
     "start": "node dist/host/main.js",
     "dev": "npm run build && node dist/host/main.js",
     "test": "npm run build && node --test dist/tests/*.test.js",
