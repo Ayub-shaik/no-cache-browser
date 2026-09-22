@@ -1,5 +1,6 @@
 import type {
   ChromiumInfo,
+  CreateBrowserContextOptions,
   Engine,
   EngineStartConfig,
   Session,
@@ -7,6 +8,7 @@ import type {
   Tab,
   TabId,
 } from "../types.js";
+import { resolveBrowserContextParams } from "../save-nothing.js";
 import { CdpConnection } from "./cdp.js";
 import {
   launchChromium,
@@ -55,11 +57,24 @@ export class ChromiumEngine implements Engine {
     }
   }
 
-  async createBrowserContext(): Promise<Session> {
+  async createBrowserContext(options?: CreateBrowserContextOptions): Promise<Session> {
     const cdp = this.requireCdp();
-    const result = await cdp.send<CreateBrowserContextResult>("Target.createBrowserContext");
+    const resolved = resolveBrowserContextParams(options);
+    const params: Record<string, unknown> = {};
+    if (resolved.disposeOnDetach) {
+      params.disposeOnDetach = true;
+    }
+    const result = await cdp.send<CreateBrowserContextResult>(
+      "Target.createBrowserContext",
+      params,
+    );
     const id = result.browserContextId;
-    const session = new ChromiumSession(id, cdp, () => this.sessions.delete(id));
+    const session = new ChromiumSession(
+      id,
+      resolved.ephemeral,
+      cdp,
+      () => this.sessions.delete(id),
+    );
     this.sessions.set(id, session);
     return session;
   }
@@ -83,15 +98,18 @@ export class ChromiumEngine implements Engine {
 
 class ChromiumSession implements Session {
   readonly id: SessionId;
+  readonly ephemeral: boolean;
   private tabs = new Map<TabId, ChromiumTab>();
   private closed = false;
 
   constructor(
     id: SessionId,
+    ephemeral: boolean,
     private readonly cdp: CdpConnection,
     private readonly onClosed: () => void,
   ) {
     this.id = id;
+    this.ephemeral = ephemeral;
   }
 
   async createTab(url = "about:blank"): Promise<Tab> {
