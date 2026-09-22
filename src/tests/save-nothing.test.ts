@@ -4,7 +4,7 @@ import {
   planSaveNothingTransition,
   resolveBrowserContextParams,
 } from "../engine/save-nothing.js";
-import { normalizeUrl } from "../host/shell/server.js";
+import { normalizeUrl } from "../host/ui/server.js";
 
 test("resolveBrowserContextParams: default is non-ephemeral", () => {
   assert.deepEqual(resolveBrowserContextParams(), {
