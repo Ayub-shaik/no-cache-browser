@@ -11,10 +11,10 @@
 *.dll
 *.exe
 
-# Chromium / engine binaries (pinned artifacts downloaded separately)
-/third_party/chromium/
-/chromium/
-*.chromedriver*
+# engine / engine binaries (pinned artifacts downloaded separately)
+/third_party/engine-binary/
+/runtime/
+# (driver caches omitted)
 
 # IDE / OS
 .idea/

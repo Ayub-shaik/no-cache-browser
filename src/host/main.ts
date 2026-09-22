@@ -7,10 +7,10 @@ function usage(): never {
   npm start -- [url]
 
 Env:
-  NCB_CHROMIUM_PATH            Absolute path to pinned engine binary (or npm run fetch-chromium)
+  NCB_ENGINE_PATH            Absolute path to engine (or use npm run fetch-engine-binary)
   NCB_HEADLESS=1               Headless: skip NCB shell GUI; still supports setNoCache
   NCB_EXPORT_DIR               Export directory (default: ./exports)
-  NCB_ALLOW_SYSTEM_CHROMIUM=1  Opt-in system engine binary (off by default)
+  NCB_ALLOW_SYSTEM_ENGINE=1  Opt-in system engine (off by default)
   NCB_SHELL=0                  Interactive but skip shell window (content + CLI only)
 `);
   process.exit(2);
@@ -31,13 +31,13 @@ async function main(): Promise<void> {
   let panel: ReturnType<typeof attachDevExPanel> | null = null;
 
   try {
-    // Prefer a reduced content window frame when interactive.
+    // Prefer reduced browser UI for the content surface when interactive.
     const extraArgs = shellDisabled
       ? undefined
       : ["--new-window"];
 
     await engine.start({ headless, extraArgs });
-    const info = engine.chromiumInfo();
+    const info = engine.engineBinaryInfo();
     console.log(`Engine: ${info.version}`);
     console.log(`Executable: ${info.executablePath}`);
 
