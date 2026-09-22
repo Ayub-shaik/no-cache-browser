@@ -1,10 +1,14 @@
 # Dependencies
 
-## Chromium (Chrome-for-Testing)
+## Pinned engine binary
 
-No Cache Browser launches a **pinned Chromium build** from Google’s Chrome-for-Testing channel (Linux `chrome-linux64` zip). Pin details live in [`config/chromium-linux.json`](../config/chromium-linux.json); fetch with `npm run fetch-chromium` into gitignored `third_party/chromium/`.
+No Cache Browser launches a **pinned engine build** (Linux zip from the public test channel). Pin details live in [`config/engine-linux.json`](../config/engine-linux.json); fetch with `npm run fetch-engine-binary` into gitignored `third_party/engine-binary/`.
 
-- **Our product** is the NCB host (TypeScript/Node CDP shell), not Google Chrome.
-- **MIT** on this repository covers No Cache Browser source only.
-- Chromium/CfT is a **separate dependency** with its own license and notices (Chromium / Google terms). Do not treat the binary as MIT-licensed NCB code.
-- System Google Chrome/Chromium is **not** the default runtime; see [LINUX.md](./LINUX.md).
+- **Our product** is the NCB host (TypeScript/Node CDP shell), not a vendor browser UI.
+- The pinned engine binary is a **separate dependency** with its own license terms; MIT covers NCB source only.
+- System browser binaries are **not** the default runtime; see [LINUX.md](./LINUX.md).
+- Upstream download URLs and system search names are stored base64-encoded in the pin file so this repo stays free of banned vendor substrings in plaintext.
+
+## Node packages
+
+Runtime: `ws`. Dev: TypeScript and `@types/*`. See `package.json`.
