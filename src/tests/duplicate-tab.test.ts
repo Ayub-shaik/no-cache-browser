@@ -9,7 +9,7 @@ import type {
   TabSubscribeHandlers,
   Unsubscribe,
 } from "../engine/types.js";
-import { ContentController } from "../host/shell/controller.js";
+import { ContentController } from "../host/ui/controller.js";
 
 function fakeTab(id: string, url = "about:blank"): Tab & { navigated: string[] } {
   let noCache = false;
@@ -88,6 +88,59 @@ test("duplicateTab uses Session.createTab — not a new BrowserContext", async (
     (tabs[1] as ReturnType<typeof fakeTab>).navigated.includes("https://example.com/app"),
   );
   assert.equal(controller.getPageUrl(), "https://example.com/app");
+
+  await controller.close();
+});
+
+test("listTabs / activateTab keep a single BrowserContext", async () => {
+  let contextCreates = 0;
+  let tabCreates = 0;
+
+  const session: Session = {
+    id: "ctx-1",
+    ephemeral: false,
+    createTab: async (url = "about:blank") => {
+      tabCreates += 1;
+      return fakeTab(`tab-${tabCreates}`, url);
+    },
+    close: async () => undefined,
+  };
+
+  const engine: Engine = {
+    start: async () => undefined,
+    stop: async () => undefined,
+    createBrowserContext: async () => {
+      contextCreates += 1;
+      return session;
+    },
+    engineBinaryInfo: () => ({
+      version: "test",
+      executablePath: "/bin/false",
+      webSocketDebuggerUrl: "ws://127.0.0.1:0",
+    }),
+  };
+
+  const controller = new ContentController({
+    engine,
+    buffer: new SessionBuffer(),
+    initialUrl: "https://example.com",
+    engineVersion: "test",
+  });
+
+  await controller.start(false);
+  await controller.navigate("https://example.com/a");
+  await controller.duplicateTab();
+  await controller.navigate("https://example.com/b");
+
+  const listed = controller.listTabs();
+  assert.equal(listed.length, 2);
+  assert.equal(contextCreates, 1);
+  const inactive = listed.find((t) => !t.active);
+  assert.ok(inactive);
+  await controller.activateTab(inactive!.id);
+  assert.equal(controller.getTab().id, inactive!.id);
+  assert.equal(controller.listTabs().filter((t) => t.active).length, 1);
+  assert.equal(contextCreates, 1);
 
   await controller.close();
 });
