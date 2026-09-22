@@ -1,26 +1,28 @@
 # Engine / Session boundary + CDP mapping (MVP)
 
-Status: **approved** — aligns with [ARCHITECTURE.md](./ARCHITECTURE.md). No app code yet.
+Status: **approved** — aligns with [ARCHITECTURE.md](./ARCHITECTURE.md). Lead architect freeze (product shell + save-nothing).
 
-Owner: Browser Engineer
+Owner: Browser Engineer (engine) / host shell
 
 ## Goals
 
-- Keep a small host surface; Chromium owns rendering and networking.
+- Keep a small host surface; engine owns rendering and networking.
 - Hide raw CDP behind `Engine` / `Session` / `Tab` so DevEx and UI never call protocol methods directly.
-- Support Linux-first packaging of bundled Chromium, with the same interfaces usable later on Windows/macOS.
-- Implement MVP no-cache as: HTTP cache off + service workers bypassed/unregistered for that tab’s session.
+- Support Linux-first packaging of bundled engine, with the same interfaces usable later on Windows/macOS.
+- Implement v1 **save nothing** as: **ephemeral BrowserContext** + HTTP cache off + service workers bypassed/unregistered.
+- Product shell is **our own** NCB top pane (not a vendor-browser lookalike; no separate Incognito — the toggle *is* that mode).
 
 ## Types (logical)
 
 ```text
 Engine
-  start(config) -> void          // locate/launch bundled Chromium, open CDP
+  start(config) -> void
   stop() -> void
-  createBrowserContext() -> Session
-  chromiumInfo() -> { version, executablePath }
+  createBrowserContext({ ephemeral?: bool }) -> Session
+  engineBinaryInfo() -> { version, executablePath }
 
 Session                              // one BrowserContext (isolation boundary)
+  ephemeral: bool                    // true ⇒ isolated + discarded on close
   createTab(url?) -> Tab
   close() -> void
   id: SessionId
@@ -28,59 +30,78 @@ Session                              // one BrowserContext (isolation boundary)
 Tab
   navigate(url) -> void
   reload(ignoreCache: bool) -> void
-  setNoCache(enabled: bool) -> void  // MVP toggle — see semantics below
+  back() / forward() -> bool         // best-effort history
+  setNoCache(enabled: bool) -> void  // cache + SW for this tab
   noCacheEnabled: bool
   subscribe(ConsoleSink | NetworkSink) -> Unsubscribe
   close() -> void
   id: TabId
 ```
 
-**Rule:** only `ChromiumEngine` (or a future CEF adapter) may hold a CDP client. UI and DevEx depend on these interfaces + event sinks, not on CDP domains.
+**Host product toggle** (`ContentController.setSaveNothing`):
+
+- **ON:** swap to `createBrowserContext({ ephemeral: true })`, restore URL, `Tab.setNoCache(true)` (cache/SW + one ignoreCache reload if document already committed).
+- **OFF:** swap back to normal (non-ephemeral) context, restore URL, cache/SW clear on the new tab; **no** auto-reload.
+
+**Rule:** only `RuntimeEngine` (or a future CEF adapter) may hold a CDP client. UI and DevEx depend on these interfaces + event sinks, not on CDP domains. Host/shell must not import CDP types.
 
 ## Isolation model
 
 | Level | MVP choice | Why |
 |-------|------------|-----|
-| Process | One Chromium process (or one browser instance) per app | Simple packaging |
-| Session | One CDP `Browser.createBrowserContext` per logical profile/window as needed | Cookie/storage isolation without post-MVP wipe APIs |
-| Tab | One target (`Target.createTarget`) per tab, attached via CDP session | Per-tab no-cache + capture scope |
+| Process | One engine process per app | Simple packaging |
+| Session | `Target.createBrowserContext` — normal vs **ephemeral** | Cookie/storage isolation for save-nothing without mid-session wipe APIs |
+| Tab | One target per tab, attached via CDP session | Per-tab cache/SW + capture scope |
 
-For MVP, **per-tab no-cache** is applied on that tab’s CDP session. Prefer **one BrowserContext per window** (not per tab) unless we hit SW/cache bleed; revisit if testing shows cross-tab leakage.
+Ephemeral contexts are always disposed on close (CDP `disposeBrowserContext`; `disposeOnDetach` when ephemeral). **Ephemeral = isolated + discarded** — no durable cookies/storage for that mode.
 
-## No-cache toggle (MVP) — deterministic semantics
+## Save-nothing / no-cache toggle (v1) — deterministic semantics
 
-### `setNoCache(true)`
+Product name in the NCB shell: **No-cache / Save nothing**.
 
-1. If `noCacheEnabled` is already `true` → **no-op** (idempotent; **do not** reload).
-2. Otherwise apply configuration on this tab’s CDP session:
-   - `Network.enable` (if not already; also required for DevEx capture).
+### Toggle ON (`setSaveNothing(true)`)
+
+1. If already ON → **no-op**.
+2. Close current content session/tabs; open `createBrowserContext({ ephemeral: true })` + tab; restore URL.
+3. Apply tab configuration (same as `setNoCache(true)`):
+   - `Network.enable` (if needed).
    - `Network.setCacheDisabled({ cacheDisabled: true })`.
-   - `Network.setBypassServiceWorker({ bypass: true })`.
-   - Best-effort: `ServiceWorker.enable`, list registrations for the tab’s origin(s), `ServiceWorker.unregister({ scopeURL })` for each.
-3. If the tab already has a committed document (already-loaded page) → perform **exactly one** `reload(ignoreCache: true)` so bypass/unregister take effect. **Never** auto-reload in a loop.
-4. If there is no committed document yet (empty / new tab) → skip reload; the next `navigate` runs under no-cache.
-5. Set `noCacheEnabled = true`.
+   - **`Network.setBypassServiceWorker({ bypass: true })`** (not `Page.setBypassServiceWorker`).
+   - Best-effort unregister via `ServiceWorker.enable` + page `navigator.serviceWorker` unregister.
+4. If the tab already has a committed document → **exactly one** `reload(ignoreCache: true)`. Never loop.
+5. If no committed document yet → skip reload; next `navigate` runs under no-cache.
+6. Set product state ON (`noCacheEnabled` true for export meta).
 
-### `setNoCache(false)`
+### Toggle OFF (`setSaveNothing(false)`)
 
-1. If `noCacheEnabled` is already `false` → **no-op**.
-2. Otherwise: `Network.setCacheDisabled({ cacheDisabled: false })`, `Network.setBypassServiceWorker({ bypass: false })`. Do **not** re-register service workers.
-3. **Do not** automatically reload. Normal caching applies on the **next** navigation or user/engine `reload`.
-4. Set `noCacheEnabled = false`.
+1. If already OFF → **no-op**.
+2. Swap to a **normal** (non-ephemeral) BrowserContext; restore URL.
+3. New tab starts with cache/SW enabled (`setNoCache` false). Do **not** re-register service workers.
+4. **Do not** automatically reload. Normal caching applies on the next navigation or user/engine `reload`.
 
-### Capture across the forced reload
+### `Tab.setNoCache` alone
 
-The single forced reload from `setNoCache(true)` must **not** reset DevEx subscriptions or imply a buffer clear. Engine keeps the same tab sinks attached; DevEx keeps the same `SessionBuffer` so pre-toggle console/network traffic remains available for export. `noCacheEnabled` in export metadata is export-time state (see EXPORT-SCHEMA).
+Still available for tests/headless cache+SW without forcing a context swap. Interactive shell and DevEx CLI `nocache on|off` go through **save-nothing** when the host controller is wired.
 
-### Chromium / service-worker limitations (document honestly)
+### Capture across forced reload / context swap
 
-- An already-controlling SW may keep answering until the document is reloaded — hence the single forced reload on enable.
-- `ServiceWorker.unregister` is asynchronous; other tabs/clients under the same scope may still be controlled until they navigate/reload.
+Forced reload and context swap must **not** clear DevEx `SessionBuffer`. Panel may `retarget` the new `Tab`; pre-toggle console/network traffic remains for export. `noCacheEnabled` in export metadata is export-time state (see EXPORT-SCHEMA).
+
+### engine / service-worker limitations (document honestly)
+
+- An already-controlling SW may keep answering until the document is reloaded — hence the single forced reload on enable when a document was committed.
+- `ServiceWorker.unregister` is asynchronous; other tabs under the same scope may still be controlled until they navigate/reload.
 - `Network.setBypassServiceWorker` applies to that page’s network stack; it is not a process-wide “SW never exists” guarantee.
-- HTTP cache disable is per attached target/session; we do not clear disk cache in MVP.
-- Turning no-cache **off** without reload means the current document may still reflect the no-cache load until the user navigates/reloads — by design for MVP.
+- HTTP cache disable is per attached target/session; we do not clear disk cache in v1.
+- Turning save-nothing **off** without reload means the current document may still reflect the prior load until the user navigates/reloads — by design.
 
-**Out of scope (post-MVP):** `Network.clearBrowserCache`, bfcache flags, `Storage.clearDataForOrigin`, cookie/localStorage/IDB clearing.
+### Post-MVP (explicitly deferred)
+
+- Mid-session wipe of already-written storage
+- Deep bfcache control
+- Element inspector
+- Windows / macOS packaging
+- `Network.clearBrowserCache`, `Storage.clearDataForOrigin`, cookie/localStorage/IDB clearing UX
 
 ## CDP method map
 
@@ -88,48 +109,63 @@ The single forced reload from `setNoCache(true)` must **not** reset DevEx subscr
 
 | Concern | CDP |
 |---------|-----|
-| Launch | Host starts bundled Chromium with `--remote-debugging-port=<port>` (and Linux sandbox flags as needed); connect over WebSocket |
-| Browser context | `Target.createBrowserContext` / `Target.disposeBrowserContext` |
+| Launch | Host starts bundled engine with `--remote-debugging-port=<port>`; connect over WebSocket |
+| Browser context | `Target.createBrowserContext` (`disposeOnDetach` when ephemeral) / `Target.disposeBrowserContext` |
 | New tab | `Target.createTarget` `{ url, browserContextId }` |
 | Attach | `Target.attachToTarget` `{ flatten: true }` → sessionId |
 | Navigate | `Page.enable`, `Page.navigate` |
-| Reload | `Page.reload` `{ ignoreCache: true|false }` |
+| History | `Page.getNavigationHistory` + `Page.navigateToHistoryEntry` (best-effort) |
+| Reload | `Page.reload` `{ ignoreCache: true\|false }` |
 | Close tab | `Target.closeTarget` |
 
-### No-cache
+### Save-nothing / no-cache
 
 | Concern | CDP |
 |---------|-----|
 | HTTP cache off | `Network.setCacheDisabled` |
-| Bypass SW | `Network.setBypassServiceWorker` |
-| Unregister SW | `ServiceWorker.enable` + `ServiceWorker.unregister` |
+| Bypass SW | **`Network.setBypassServiceWorker`** |
+| Unregister SW | `ServiceWorker.enable` + best-effort page unregister |
 | Forced reload on enable | `Page.reload` `{ ignoreCache: true }` — once, only when enabling from off on a loaded page |
 
 ### Streams for DevEx (sinks only — no UI here)
 
 | Concern | CDP | Sink payload (minimal) |
 |---------|-----|------------------------|
-| Console | `Runtime.enable` + `Runtime.consoleAPICalled`; optional `Log.enable` + `Log.entryAdded` | timestamp, level, text/args, url, line/col |
-| Network | `Network.enable` + `requestWillBeSent` / `responseReceived` / `loadingFinished` / `loadingFailed` (+ `getResponseBody` on demand for export) | requestId, url, method, status, timing, headers; body optional/capped |
+| Console | `Runtime.enable` + `Runtime.consoleAPICalled` | timestamp, level, text/args, url, line/col |
+| Network | `Network.enable` + request/response/finished/failed (+ `getResponseBody` on demand) | requestId, url, method, status, headers; body optional/capped |
 
-DevEx owns `SessionBuffer` and HAR shaping; Engine only forwards typed events and honors “get body for requestId” requests from the export path.
+DevEx owns `SessionBuffer` and HAR shaping; Engine only forwards typed events. Export stamps **`noCacheEnabled`** clearly (DevEx owns the stamp).
 
-## Chromium packaging (Linux MVP)
+## NCB shell (host UI)
 
-- Ship a pinned Chromium revision (stable channel preferred) next to the host binary.
-- Document upgrade process: bump pin, smoke-test CDP methods above, release.
-- CEF remains the documented fallback if bundling/debugging-port packaging cost blows up — same `Engine` interface, different adapter.
+- Tiny local HTTP server serves NCB-branded HTML (title **NCB**).
+- Top pane: URL, Go/Back/Forward, **Duplicate**, **No-cache / Save nothing** toggle, status.
+- **Duplicate:** `Session.createTab` in the *same* BrowserContext (cookies/login carry over). Copies current URL (title when known). Does **not** create a new BrowserContext.
+- Control plane: WebSocket shell page → host controller (navigate + toggle + duplicate).
+- Launch: content target + shell target (`http://127.0.0.1:<port>/`). Prefer reduced browser UI flags for the content surface when practical (see LINUX.md). Do **not** present a system browser as the product.
+- Headless: skip shell windows; `setNoCache` / tests still work.
+
+## Downloads (documented only — no manager this slice)
+
+- No separate download manager UI in this freeze.
+- In-flight downloads continue after that tab closes if the NCB process is still open.
+- Quitting NCB (process stop) stops downloads.
+
+## engine packaging (Linux MVP)
+
+- Ship a pinned engine revision (CfT) next to the host — see [LINUX.md](./LINUX.md).
+- CEF remains the documented fallback — same `Engine` interface, different adapter.
 
 ## Non-goals for this draft
 
 - Element inspector / DOM/CSS domains
 - Full DevTools frontend
-- Profiles UX beyond a single default context
-- Windows/macOS launch flags (stub behind `Engine.start` config later)
+- Separate Incognito UI (toggle *is* save-nothing)
+- Windows/macOS launch flags (stub behind `Engine.start` later)
 
-## Acceptance for sequence step 2–3
+## Acceptance
 
-- Host can launch Chromium, open a tab, navigate.
-- Toggle no-cache on a loaded tab → config applied + exactly one ignoreCache reload; second `setNoCache(true)` does not reload.
-- `setNoCache(false)` does not auto-reload.
-- Console + Network events continue across that reload without CDP types leaking outside the Chromium adapter.
+- Interactive start shows NCB-branded shell with working top toggle.
+- Toggle ON uses ephemeral BrowserContext + cache/SW; OFF returns to normal context.
+- No vendor-browser lookalike branding in *our* shell HTML.
+- Docs match freeze; SW method is `Network.setBypassServiceWorker`.
