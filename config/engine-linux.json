@@ -1,5 +1,5 @@
 {
-  "description": "Pinned engine binary (Linux) for No Cache Browser. Product is the NCB host — we do not ship or default to a system browser binary.",
+  "description": "Pinned engine binary (Linux) for No Cache Browser. Product is the NCB host \u2014 we do not ship or default to a system browser binary.",
   "platform": "linux",
   "channel": "Stable",
   "version": "153.0.8010.52",
@@ -27,7 +27,7 @@
     "Z29vZ2xlLWNocm9tZQ=="
   ],
   "notes": [
-    "Default resolve: EngineStartConfig.enginePath → NCB_ENGINE_PATH → bundled third_party/engine-binary/engine (via npm run fetch-engine-binary).",
+    "Default resolve: EngineStartConfig.enginePath \u2192 NCB_ENGINE_PATH \u2192 bundled third_party/engine-binary/engine (via npm run fetch-engine-binary).",
     "System engine binary is used ONLY when NCB_ALLOW_SYSTEM_ENGINE=1 (or true); searchPathsB64 are an opt-in allowlist, not the default.",
     "MIT license covers No Cache Browser source only; the pinned engine binary is a separate dependency with its own license.",
     "Set NCB_ENGINE_NO_SANDBOX=1 in containers/CI if the setuid sandbox fails.",
