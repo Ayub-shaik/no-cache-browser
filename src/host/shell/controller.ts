@@ -6,7 +6,7 @@ export interface ContentControllerOptions {
   engine: Engine;
   buffer: SessionBuffer;
   initialUrl: string;
-  chromiumVersion: string;
+  engineVersion: string;
   appVersion?: string;
   /** Called when the active content Tab instance changes (context swap or duplicate). */
   onTabChanged?: (tab: Tab) => void;
@@ -27,7 +27,7 @@ export class ContentController {
   private pageTitle: string;
   private readonly engine: Engine;
   private readonly buffer: SessionBuffer;
-  private readonly chromiumVersion: string;
+  private readonly engineVersion: string;
   private readonly appVersion: string;
   private readonly onTabChanged?: (tab: Tab) => void;
 
@@ -36,7 +36,7 @@ export class ContentController {
     this.buffer = opts.buffer;
     this.pageUrl = opts.initialUrl;
     this.pageTitle = opts.initialUrl;
-    this.chromiumVersion = opts.chromiumVersion;
+    this.engineVersion = opts.engineVersion;
     this.appVersion = opts.appVersion ?? "0.1.0";
     this.onTabChanged = opts.onTabChanged;
   }
@@ -200,7 +200,7 @@ export class ContentController {
     const tab = this.tab;
     if (!tab) return;
     this.buffer.setMeta({
-      chromium: { version: this.chromiumVersion },
+      engine: { version: this.engineVersion },
       tab: {
         id: tab.id,
         url: this.pageUrl,

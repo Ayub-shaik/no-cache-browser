@@ -7,10 +7,10 @@ function usage(): never {
   npm start -- [url]
 
 Env:
-  NCB_CHROMIUM_PATH            Absolute path to Chromium (or use npm run fetch-chromium)
+  NCB_CHROMIUM_PATH            Absolute path to pinned engine binary (or npm run fetch-chromium)
   NCB_HEADLESS=1               Headless: skip NCB shell GUI; still supports setNoCache
   NCB_EXPORT_DIR               Export directory (default: ./exports)
-  NCB_ALLOW_SYSTEM_CHROMIUM=1  Opt-in system Chromium (off by default)
+  NCB_ALLOW_SYSTEM_CHROMIUM=1  Opt-in system engine binary (off by default)
   NCB_SHELL=0                  Interactive but skip shell window (content + CLI only)
 `);
   process.exit(2);
@@ -31,14 +31,14 @@ async function main(): Promise<void> {
   let panel: ReturnType<typeof attachDevExPanel> | null = null;
 
   try {
-    // Prefer reduced browser chrome for the content surface when interactive.
+    // Prefer a reduced content window frame when interactive.
     const extraArgs = shellDisabled
       ? undefined
       : ["--new-window"];
 
     await engine.start({ headless, extraArgs });
     const info = engine.chromiumInfo();
-    console.log(`Chromium: ${info.version}`);
+    console.log(`Engine: ${info.version}`);
     console.log(`Executable: ${info.executablePath}`);
 
     const buffer = new SessionBuffer();
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
       engine,
       buffer,
       initialUrl: url,
-      chromiumVersion: info.version,
+      engineVersion: info.version,
       appVersion: "0.1.0",
       onTabChanged: (tab) => {
         panel?.retarget(tab);
@@ -101,7 +101,7 @@ async function main(): Promise<void> {
       shellSession = await engine.createBrowserContext();
       const shellTab = await shellSession.createTab(shell.url);
       console.log(`NCB shell: ${shell.url} (target ${shellTab.id})`);
-      console.log("Top chrome: URL / Go / Back / Forward / Duplicate / No-cache·Save nothing toggle");
+      console.log("NCB shell: URL / Go / Back / Forward / Duplicate / No-cache·Save nothing toggle");
     }
 
     if (headless) {

@@ -71,7 +71,7 @@ test("duplicateTab uses Session.createTab — not a new BrowserContext", async (
     engine,
     buffer,
     initialUrl: "https://example.com",
-    chromiumVersion: "test",
+    engineVersion: "test",
   });
 
   await controller.start(false);

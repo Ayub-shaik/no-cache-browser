@@ -96,7 +96,7 @@ test("toSessionJson stamps noCacheEnabled at export time", async () => {
   const tab = fakeTab();
   const buf = new SessionBuffer();
   buf.setMeta({
-    chromium: { version: "1.0" },
+    engine: { version: "1.0" },
     tab: { id: tab.id, url: "https://example.com", title: "Example", noCacheEnabled: false },
   });
   await tab.setNoCache(true);

@@ -1,6 +1,6 @@
 # DevEx export schema (MVP)
 
-Status: **approved** — aligns with [ARCHITECTURE.md](./ARCHITECTURE.md) and [ENGINE-SESSION.md](./ENGINE-SESSION.md). No app code yet.
+Status: **approved** — aligns with [ARCHITECTURE.md](./ARCHITECTURE.md) and [ENGINE-SESSION.md](./ENGINE-SESSION.md). Branding: say **NCB / engine / pinned binary** only.
 
 Owner: DevEx Engineer
 
@@ -27,7 +27,7 @@ External upload integrations are **out of MVP** — export is local file only.
   "schemaVersion": 1,
   "exportedAt": "2026-09-21T14:30:00.000Z",
   "app": { "name": "no-cache-browser", "version": "0.0.0" },
-  "chromium": { "version": "<from Engine.chromiumInfo()>" },
+  "engine": { "version": "<from Engine version / pinned binary>" },
   "tab": {
     "id": "<TabId>",
     "url": "https://example.com/",
@@ -66,7 +66,7 @@ Maps 1:1 from Browser Engineer’s console sink:
 
 ## HAR (`har` / `*.har`)
 
-Use **HAR 1.2** `log` shape so tools (Chrome, Charles, etc.) can open network data:
+Use **HAR 1.2** `log` shape so standard HAR viewers (and tools like Charles) can open network data:
 
 ```json
 {
@@ -106,7 +106,7 @@ Use **HAR 1.2** `log` shape so tools (Chrome, Charles, etc.) can open network da
 SessionBuffer          // one per Tab subscription
   appendConsole(ConsoleEntry)
   appendNetwork(NetworkEvent)   // merges into HarEntry by requestId
-  setMeta({ tab, capture, noCacheEnabled, chromium })
+  setMeta({ tab, capture, noCacheEnabled, engine })
   toSessionJson() -> ncb-session.json bytes
   toHar() -> HAR 1.2 log object
   clear()
@@ -121,7 +121,7 @@ SessionBuffer          // one per Tab subscription
 
 - External log shippers / webhooks
 - Cookies, storage dumps, screenshots, DOM snapshots
-- Full Chrome DevTools Protocol dump
+- Full raw CDP protocol dump
 - Multi-tab bundled export (export is per-tab)
 
 ## Acceptance
