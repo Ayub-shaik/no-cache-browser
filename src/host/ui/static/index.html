@@ -159,9 +159,99 @@
       border-bottom: 1px solid var(--border);
     }
     #hint {
-      padding: 16px 12px;
+      padding: 8px 12px;
       color: var(--muted);
       max-width: 42rem;
+      display: none; /* product window is self-explanatory once DevEx dock is up */
+    }
+    .devex {
+      display: flex;
+      flex-direction: column;
+      height: calc(100% - 120px);
+      min-height: 220px;
+      border-top: 1px solid var(--border);
+      background: #12151a;
+    }
+    .devex-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 8px;
+      background: var(--pane);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .devex-tab {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .devex-tab.active {
+      color: var(--text);
+      border-color: var(--accent);
+      background: #2a3142;
+    }
+    .devex-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 6px;
+    }
+    .devex-actions button {
+      background: #2e3440;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .devex-actions button:hover { border-color: var(--accent); }
+    .devex-actions button.primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .devex-body {
+      flex: 1;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .devex-pane { display: none; padding: 4px 0; }
+    .devex-pane.active { display: block; }
+    .log-row {
+      display: grid;
+      grid-template-columns: 64px 56px 1fr;
+      gap: 8px;
+      padding: 2px 10px;
+      border-bottom: 1px solid #1c2028;
+    }
+    .log-row:hover { background: #1a1f28; }
+    .log-row .lvl { color: var(--muted); text-transform: uppercase; font-size: 10px; }
+    .log-row.level-error .lvl, .log-row.level-error .msg { color: var(--danger); }
+    .log-row.level-warn .lvl, .log-row.level-warn .msg { color: #e6c07b; }
+    .log-row .ts { color: #6b7280; }
+    .log-row .msg { color: var(--text); word-break: break-word; white-space: pre-wrap; }
+    .net-row {
+      display: grid;
+      grid-template-columns: 52px 48px 1fr;
+      gap: 8px;
+      padding: 2px 10px;
+      border-bottom: 1px solid #1c2028;
+    }
+    .net-row:hover { background: #1a1f28; }
+    .net-row .method { color: var(--accent); font-weight: 600; }
+    .net-row .status { color: var(--muted); }
+    .net-row .status.ok { color: var(--on); }
+    .net-row .status.bad { color: var(--danger); }
+    .net-row .url { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .empty {
+      padding: 16px 12px;
+      color: var(--muted);
     }
   </style>
 </head>
@@ -181,20 +271,35 @@
   </div>
   <div id="status">Connecting…</div>
   <div id="hint">
-    This is the <strong>NCB</strong> product window. Use the tab strip, address bar, and
-    <strong>No-cache / Save nothing</strong> toggle to drive the content surface.
-    Toggle ON uses an ephemeral browsing context (cookies/storage discarded with that mode)
-    plus HTTP cache off and service-worker bypass.
-    <strong>Duplicate</strong> opens another tab in the <em>same</em> session (login/cookies carry over).
-    Closing a tab does not stop in-flight downloads while NCB is running; quitting the process stops them.
+    NCB product window — tabs, address, save-nothing toggle, and DevEx dock below.
   </div>
+  <section class="devex" id="devex" aria-label="Developer tools">
+    <div class="devex-bar">
+      <button type="button" class="devex-tab active" data-pane="console" id="tab-console">Console</button>
+      <button type="button" class="devex-tab" data-pane="network" id="tab-network">Network</button>
+      <div class="devex-actions">
+        <button type="button" id="btn-clear" title="Clear captured console and network">Clear</button>
+        <button type="button" id="btn-har" title="Export HAR 1.2">Export HAR</button>
+        <button type="button" class="primary" id="btn-session" title="Export ncb-session.json">Export session</button>
+      </div>
+    </div>
+    <div class="devex-body">
+      <div class="devex-pane active" id="pane-console"><div class="empty" id="console-empty">No console messages yet.</div><div id="console-list"></div></div>
+      <div class="devex-pane" id="pane-network"><div class="empty" id="network-empty">No network requests yet.</div><div id="network-list"></div></div>
+    </div>
+  </section>
   <script>
     const urlEl = document.getElementById("url");
     const statusEl = document.getElementById("status");
     const toggleEl = document.getElementById("toggle");
     const tabsEl = document.getElementById("tabs");
+    const consoleList = document.getElementById("console-list");
+    const networkList = document.getElementById("network-list");
+    const consoleEmpty = document.getElementById("console-empty");
+    const networkEmpty = document.getElementById("network-empty");
     let ws;
     let noCacheEnabled = false;
+    let activePane = "console";
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -265,6 +370,65 @@
       }
     }
 
+    function fmtTime(ts) {
+      try {
+        const d = new Date(ts);
+        return d.toLocaleTimeString(undefined, { hour12: false });
+      } catch (_) {
+        return "";
+      }
+    }
+
+    function renderDevEx(snap) {
+      const cons = snap.console || [];
+      const nets = snap.network || [];
+      consoleEmpty.style.display = cons.length ? "none" : "block";
+      networkEmpty.style.display = nets.length ? "none" : "block";
+      consoleList.innerHTML = cons.map((row) => {
+        const lvl = (row.level || "log").toLowerCase();
+        return '<div class="log-row level-' + lvl + '">' +
+          '<span class="ts">' + fmtTime(row.timestamp) + '</span>' +
+          '<span class="lvl">' + lvl + '</span>' +
+          '<span class="msg"></span></div>';
+      }).join("");
+      Array.from(consoleList.querySelectorAll(".msg")).forEach((el, i) => {
+        el.textContent = cons[i].text || "";
+      });
+      networkList.innerHTML = nets.map((row) => {
+        const st = row.status;
+        let cls = "";
+        let label = "…";
+        if (row.errorText) { cls = "bad"; label = "ERR"; }
+        else if (st === null || st === undefined) { label = "…"; }
+        else { cls = st >= 400 ? "bad" : "ok"; label = String(st); }
+        return '<div class="net-row">' +
+          '<span class="method"></span>' +
+          '<span class="status ' + cls + '">' + label + '</span>' +
+          '<span class="url"></span></div>';
+      }).join("");
+      Array.from(networkList.querySelectorAll(".method")).forEach((el, i) => {
+        el.textContent = nets[i].method || "GET";
+      });
+      Array.from(networkList.querySelectorAll(".url")).forEach((el, i) => {
+        el.textContent = nets[i].url || "";
+        el.title = nets[i].url || "";
+      });
+      document.getElementById("tab-console").textContent =
+        "Console" + (snap.consoleCount ? " (" + snap.consoleCount + ")" : "");
+      document.getElementById("tab-network").textContent =
+        "Network" + (snap.networkCount ? " (" + snap.networkCount + ")" : "");
+    }
+
+    function setPane(name) {
+      activePane = name;
+      document.querySelectorAll(".devex-tab").forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-pane") === name);
+      });
+      document.querySelectorAll(".devex-pane").forEach((p) => {
+        p.classList.toggle("active", p.id === "pane-" + name);
+      });
+    }
+
     function connect() {
       const proto = location.protocol === "https:" ? "wss" : "ws";
       ws = new WebSocket(proto + "://" + location.host + "/ws");
@@ -278,6 +442,10 @@
         try {
           const msg = JSON.parse(ev.data);
           if (msg.type === "state") applyState(msg);
+          else if (msg.type === "devex") renderDevEx(msg);
+          else if (msg.type === "export-done") {
+            setStatus("Exported " + msg.kind + ": " + msg.file);
+          }
         } catch (_) { /* ignore */ }
       };
     }
@@ -290,6 +458,19 @@
     document.getElementById("forward").onclick = () => send({ type: "forward" });
     document.getElementById("duplicate").onclick = () => send({ type: "duplicate" });
     toggleEl.onclick = () => send({ type: "toggle", enabled: !noCacheEnabled });
+
+    document.querySelectorAll(".devex-tab").forEach((btn) => {
+      btn.onclick = () => setPane(btn.getAttribute("data-pane"));
+    });
+    document.getElementById("btn-clear").onclick = () => send({ type: "devex-clear" });
+    document.getElementById("btn-har").onclick = () => {
+      setStatus("Exporting HAR…");
+      send({ type: "export-har" });
+    };
+    document.getElementById("btn-session").onclick = () => {
+      setStatus("Exporting session…");
+      send({ type: "export-session" });
+    };
 
     connect();
   </script>

@@ -136,3 +136,41 @@ test("toSessionJson prefers explicit noCacheEnabled override", async () => {
   assert.equal((json.tab as { noCacheEnabled: boolean }).noCacheEnabled, true);
   assert.equal((json.engine as { version: string }).version, "1.0");
 });
+
+test("onUpdate fires on append and clear; getNetworkSummary rows", () => {
+  const buf = new SessionBuffer();
+  let n = 0;
+  const off = buf.onUpdate(() => {
+    n += 1;
+  });
+  buf.appendConsole({
+    timestamp: Date.now(),
+    level: "log",
+    text: "hi",
+  });
+  assert.equal(n, 1);
+  buf.appendNetwork({
+    kind: "request",
+    requestId: "r1",
+    timestamp: Date.now(),
+    method: "GET",
+    url: "https://example.com/a",
+    headers: {},
+  });
+  assert.equal(n, 2);
+  const rows = buf.getNetworkSummary();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.method, "GET");
+  assert.equal(rows[0]?.url, "https://example.com/a");
+  buf.clear();
+  assert.equal(n, 3);
+  assert.equal(buf.getConsoleEntries().length, 0);
+  assert.equal(buf.getNetworkSummary().length, 0);
+  off();
+  buf.appendConsole({
+    timestamp: Date.now(),
+    level: "warn",
+    text: "x",
+  });
+  assert.equal(n, 3);
+});
