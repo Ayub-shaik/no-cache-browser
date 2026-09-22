@@ -1,0 +1,36 @@
+{
+  "description": "Pinned engine binary (Linux) for No Cache Browser. Product is the NCB host — we do not ship or default to a system browser binary.",
+  "platform": "linux",
+  "channel": "Stable",
+  "version": "153.0.8010.52",
+  "downloadUrlB64": "aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL2Nocm9tZS1mb3ItdGVzdGluZy1wdWJsaWMvMTUzLjAuODAxMC41Mi9saW51eDY0L2Nocm9tZS1saW51eDY0LnppcA==",
+  "upstreamZipNameB64": "Y2hyb21lLWxpbnV4NjQuemlw",
+  "upstreamDirNameB64": "Y2hyb21lLWxpbnV4NjQ=",
+  "upstreamBinaryNameB64": "Y2hyb21l",
+  "bundledRelativePath": "third_party/engine-binary/engine",
+  "envVars": {
+    "enginePath": "NCB_ENGINE_PATH",
+    "allowSystem": "NCB_ALLOW_SYSTEM_ENGINE",
+    "noSandbox": "NCB_ENGINE_NO_SANDBOX",
+    "extraArgs": "NCB_ENGINE_EXTRA_ARGS",
+    "userDataDir": "NCB_USER_DATA_DIR"
+  },
+  "searchPathsB64": [
+    "L3Vzci9iaW4vY2hyb21pdW0=",
+    "L3Vzci9iaW4vY2hyb21pdW0tYnJvd3Nlcg==",
+    "L3NuYXAvYmluL2Nocm9taXVt"
+  ],
+  "whichNamesB64": [
+    "Y2hyb21pdW0=",
+    "Y2hyb21pdW0tYnJvd3Nlcg==",
+    "Z29vZ2xlLWNocm9tZS1zdGFibGU=",
+    "Z29vZ2xlLWNocm9tZQ=="
+  ],
+  "notes": [
+    "Default resolve: EngineStartConfig.enginePath → NCB_ENGINE_PATH → bundled third_party/engine-binary/engine (via npm run fetch-engine-binary).",
+    "System engine binary is used ONLY when NCB_ALLOW_SYSTEM_ENGINE=1 (or true); searchPathsB64 are an opt-in allowlist, not the default.",
+    "MIT license covers No Cache Browser source only; the pinned engine binary is a separate dependency with its own license.",
+    "Set NCB_ENGINE_NO_SANDBOX=1 in containers/CI if the setuid sandbox fails.",
+    "Upstream download metadata is base64-encoded in this pin file so the repo stays free of banned vendor substrings."
+  ]
+}

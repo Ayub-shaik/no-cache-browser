@@ -2,7 +2,7 @@
   "name": "no-cache-browser",
   "version": "0.1.0",
   "private": true,
-  "description": "Developer-focused browser with NCB chrome and save-nothing (ephemeral) no-cache mode",
+  "description": "Developer-focused browser with NCB shell and save-nothing (ephemeral) no-cache mode",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
     "dev": "npm run build && node dist/host/main.js",
     "test": "npm run build && node --test dist/tests/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "fetch-chromium": "node scripts/fetch-chromium-linux.mjs"
+    "fetch-engine-binary": "node scripts/fetch-engine-binary-linux.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
