@@ -1,5 +1,5 @@
 export type {
-  ChromiumInfo,
+  EngineBinaryInfo,
   ConsoleEvent,
   CreateBrowserContextOptions,
   Engine,
@@ -18,4 +18,4 @@ export {
   type ResolvedBrowserContextParams,
   type SaveNothingTransition,
 } from "./save-nothing.js";
-export { createEngine } from "./chromium/adapter.js";
+export { createEngine } from "./runtime/adapter.js";

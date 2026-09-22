@@ -4,16 +4,16 @@ export type SessionId = string;
 export type TabId = string;
 export type Unsubscribe = () => void;
 
-export interface ChromiumInfo {
+export interface EngineBinaryInfo {
   version: string;
   executablePath: string;
   webSocketDebuggerUrl: string;
 }
 
 export interface EngineStartConfig {
-  /** Absolute path to Chromium (overrides pin/bundled). System Chrome is not default — see docs/LINUX.md. */
-  chromiumPath?: string;
-  /** Extra Chromium flags (appended after Linux defaults). */
+  /** Absolute path to engine binary (overrides pin/bundled). System browser is not default — see docs/LINUX.md. */
+  enginePath?: string;
+  /** Extra engine flags (appended after Linux defaults). */
   extraArgs?: string[];
   /** Prefer headless for CI/smoke; default false for interactive host. */
   headless?: boolean;
@@ -22,7 +22,7 @@ export interface EngineStartConfig {
   /** User-data-dir; defaults to NCB_USER_DATA_DIR or an ephemeral temp dir. */
   userDataDir?: string;
   /**
-   * Force `--no-sandbox` on Linux. Also honor env `NCB_CHROMIUM_NO_SANDBOX=1`.
+   * Force `--no-sandbox` on Linux. Also honor env `NCB_ENGINE_NO_SANDBOX=1`.
    * Auto-enabled when root or in a detected container.
    */
   linuxNoSandbox?: boolean;
@@ -43,7 +43,7 @@ export interface Engine {
   start(config?: EngineStartConfig): Promise<void>;
   stop(): Promise<void>;
   createBrowserContext(options?: CreateBrowserContextOptions): Promise<Session>;
-  chromiumInfo(): ChromiumInfo;
+  engineBinaryInfo(): EngineBinaryInfo;
 }
 
 export interface Session {

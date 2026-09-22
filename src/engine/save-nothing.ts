@@ -1,6 +1,6 @@
 /**
  * Pure helpers for v1 "save nothing" (ephemeral context + cache/SW).
- * No CDP — safe for unit tests without Chromium.
+ * No CDP — safe for unit tests without engine.
  */
 
 import type { CreateBrowserContextOptions } from "./types.js";
