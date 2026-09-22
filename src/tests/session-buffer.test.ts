@@ -122,3 +122,19 @@ test("clear is explicit only", () => {
   assert.equal(buf.getConsoleEntries().length, 0);
   assert.equal(buf.getNetworkRequestIds().length, 0);
 });
+
+test("toSessionJson prefers explicit noCacheEnabled override", async () => {
+  const tab = fakeTab();
+  const buf = new SessionBuffer();
+  buf.setMeta({
+    engine: { version: "1.0" },
+    tab: { id: tab.id, url: "https://example.com", title: "Example", noCacheEnabled: true },
+  });
+  // tab.noCacheEnabled is still false; export must stamp the product toggle.
+  const json = await buf.toSessionJson(tab, {
+    pageUrl: "https://example.com",
+    noCacheEnabled: true,
+  });
+  assert.equal((json.tab as { noCacheEnabled: boolean }).noCacheEnabled, true);
+  assert.equal((json.engine as { version: string }).version, "1.0");
+});
