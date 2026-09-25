@@ -1,0 +1,67 @@
+name: Windows launch smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ci/windows-launch-smoke
+
+concurrency:
+  group: windows-launch-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-launch-smoke:
+    name: windows-latest launch smoke
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout pinned tip
+        uses: actions/checkout@v4
+        with:
+          # Smoke the commit this branch was cut from / pushed at.
+          ref: ${{ github.sha }}
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          # package.json build/start use Unix mkdir/cp; force npm scripts onto Git Bash.
+          npm config set script-shell "C:/Program Files/Git/bin/bash.exe"
+
+      - name: Fetch pinned engine (Windows)
+        run: npm run fetch-engine-binary:windows
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: |
+          npx tsc -p tsconfig.json
+          mkdir -p dist/host/ui/static
+          cp -f src/host/ui/static/index.html dist/host/ui/static/index.html
+
+      - name: Windows launch smoke (CDP / DevEx)
+        run: node scripts/windows-launch-smoke.mjs
+        env:
+          NCB_HEADLESS: "1"
+
+      - name: Headless host one-shot (build + start)
+        run: |
+          set -euo pipefail
+          EXPORT_DIR="$(mktemp -d)"
+          export NCB_HEADLESS=1
+          export NCB_EXPORT_DIR="$EXPORT_DIR"
+          # Host exits after one navigate + DevEx export in headless mode.
+          npm start -- https://example.com
+          echo "Host export dir contents:"
+          ls -la "$EXPORT_DIR"
+          test "$(find "$EXPORT_DIR" -name '*.ncb-session.json' | wc -l)" -ge 1

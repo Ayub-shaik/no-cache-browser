@@ -15,7 +15,8 @@
     "test": "npm run build && node --test dist/tests/*.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "fetch-engine-binary": "node scripts/fetch-engine-binary-linux.mjs",
-    "fetch-engine-binary:windows": "node scripts/fetch-engine-binary-windows.mjs"
+    "fetch-engine-binary:windows": "node scripts/fetch-engine-binary-windows.mjs",
+    "smoke:windows": "node scripts/windows-launch-smoke.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
