@@ -34,6 +34,8 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          # package.json build/start use Unix mkdir/cp; force npm scripts onto Git Bash.
+          npm config set script-shell "C:/Program Files/Git/bin/bash.exe"
 
       - name: Fetch pinned engine (Windows)
         run: npm run fetch-engine-binary:windows
@@ -42,7 +44,10 @@ jobs:
         run: npm run typecheck
 
       - name: Build
-        run: npm run build
+        run: |
+          npx tsc -p tsconfig.json
+          mkdir -p dist/host/ui/static
+          cp -f src/host/ui/static/index.html dist/host/ui/static/index.html
 
       - name: Windows launch smoke (CDP / DevEx)
         run: node scripts/windows-launch-smoke.mjs
