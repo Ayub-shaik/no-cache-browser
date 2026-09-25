@@ -37,6 +37,14 @@ function platformLaunchFlags(config?: EngineStartConfig): string[] {
   return isWindowsPlatform() ? windowsLaunchFlags(config) : linuxLaunchFlags(config);
 }
 
+/**
+ * Launch flags shared by Linux and Windows engine processes.
+ * Suppresses the vendor testing-build infobar painted into content pages.
+ */
+export function sharedLaunchFlags(): string[] {
+  return ["--disable-infobars"];
+}
+
 async function findFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
@@ -113,6 +121,7 @@ export async function launchEngineBinary(
     "--no-default-browser-check",
     "--disable-default-apps",
     "--disable-background-networking",
+    ...sharedLaunchFlags(),
     ...platformLaunchFlags(config),
     ...(config?.headless ? ["--headless=new"] : []),
     ...(config?.extraArgs ?? []),

@@ -7,6 +7,7 @@ import {
   systemEngineAllowedWindows,
   windowsLaunchFlags,
 } from "../engine/runtime/windows.js";
+import { sharedLaunchFlags } from "../engine/runtime/process.js";
 
 function isPresent(filePath: string): boolean {
   try {
@@ -33,6 +34,11 @@ test("systemEngineAllowedWindows is false by default", () => {
     if (prev === undefined) delete process.env.NCB_ALLOW_SYSTEM_ENGINE;
     else process.env.NCB_ALLOW_SYSTEM_ENGINE = prev;
   }
+});
+
+
+test("sharedLaunchFlags includes disable-infobars for vendor testing infobar", () => {
+  assert.ok(sharedLaunchFlags().includes("--disable-infobars"));
 });
 
 test("windowsLaunchFlags omits Linux sandbox flags and honors EXTRA_ARGS", () => {
