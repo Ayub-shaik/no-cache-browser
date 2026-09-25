@@ -8,6 +8,7 @@ import {
   shouldDisableLinuxSandbox,
   systemEngineAllowed,
 } from "../engine/runtime/linux.js";
+import { sharedLaunchFlags } from "../engine/runtime/process.js";
 
 function isExecutable(filePath: string): boolean {
   try {
@@ -21,6 +22,11 @@ function isExecutable(filePath: string): boolean {
 test("linuxLaunchFlags always includes disable-dev-shm-usage", () => {
   const flags = linuxLaunchFlags({ linuxNoSandbox: false });
   assert.ok(flags.includes("--disable-dev-shm-usage"));
+});
+
+
+test("sharedLaunchFlags includes disable-infobars for vendor testing infobar", () => {
+  assert.ok(sharedLaunchFlags().includes("--disable-infobars"));
 });
 
 test("linuxNoSandbox config forces --no-sandbox", () => {
