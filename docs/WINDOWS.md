@@ -1,8 +1,6 @@
-# Windows launch (packaging stub)
+# Windows launch (MVP packaging slice)
 
 Owner: Browser Engineer
-
-Status: **stub** — pin shape + resolve order match Linux. Fetch script, install/launch glue, and process lifecycle land in later Step-1 (B) commits. Do not treat this as a full Windows ship.
 
 ## Platforms
 
@@ -10,20 +8,39 @@ Product targets: **Linux + Windows**. Mac is out.
 
 ## Engine binary dependency (not a system browser)
 
-Same product rule as Linux: No Cache Browser does **not** default to whatever browser binary is installed on the system. Default is a **pinned** engine binary.
+No Cache Browser is a host over CDP. It does **not** ship a vendor browser as the product, and it does **not** default to whatever browser binary is installed on the system.
 
-Pin file: [`config/engine-windows.json`](../config/engine-windows.json)  
-Resolve helper: `src/engine/runtime/windows.ts` → `resolveWindowsEnginePath`
+The default engine binary is a **pinned Windows (win64) build** declared in [`config/engine-windows.json`](../config/engine-windows.json) and fetched into gitignored `third_party/engine-binary/` via:
+
+```bash
+npm run fetch-engine-binary:windows
+```
+
+MIT covers **our** source only. The pinned engine binary carries its own license terms — see [DEPENDENCIES.md](./DEPENDENCIES.md).
+
+Resolve helper: `src/engine/runtime/windows.ts` → `resolveWindowsEnginePath`  
+Process lifecycle: `src/engine/runtime/process.ts` selects Windows resolve + launch flags when `process.platform === "win32"`.
 
 ## Engine path (pinned resolution order)
 
 1. `EngineStartConfig.enginePath`
 2. `NCB_ENGINE_PATH` (bring-your-own binary)
-3. Bundled binary at `third_party/engine-binary/engine.exe` (fetch script TBD)
+3. Bundled binary at `third_party/engine-binary/engine.exe` (from `npm run fetch-engine-binary:windows`)
 4. **System engine binary — only if** `NCB_ALLOW_SYSTEM_ENGINE=1` (or `true`):
-   - Opt-in allowlist from `config/engine-windows.json` `searchPathsB64` (populated when fetch lands)
+   - Opt-in allowlist from [`config/engine-windows.json`](../config/engine-windows.json) `searchPathsB64` (empty by default; populate only when intentionally opting in)
 
-If none resolve, the host throws a clear error pointing at `NCB_ENGINE_PATH` or the future fetch script. See Linux twin: [LINUX.md](./LINUX.md).
+If none of the above resolve, the host throws a clear error pointing at `npm run fetch-engine-binary:windows` or `NCB_ENGINE_PATH`.
+
+### Fetch pinned engine binary
+
+```bash
+npm run fetch-engine-binary:windows
+# → third_party/engine-binary/engine.exe  (gitignored)
+```
+
+Idempotent when the version marker matches the pin (`153.0.8010.52` Stable win64).
+
+On Windows the script uses PowerShell `Expand-Archive`. On Linux (CI packing) it uses `unzip`. Upstream zip metadata stays base64 in the pin file.
 
 ### Bring-your-own
 
@@ -37,21 +54,41 @@ set NCB_ENGINE_PATH=C:\path\to\engine.exe
 set NCB_ALLOW_SYSTEM_ENGINE=1
 ```
 
-Off by default.
+Use only when you intentionally want a host OS browser binary. This is **off by default**.
 
-## Process lifecycle (planned — not implemented in this stub)
+## NCB product window + content
 
-| Concern | Intent |
-|---------|--------|
-| Install / pin fetch | Script parallel to `npm run fetch-engine-binary` (Linux) |
-| Launch | Spawn pinned `engine.exe` with debugging port; host owns child lifecycle |
-| Quit | Host stop closes content sessions then engine process |
+Interactive `npm start` launches one engine process and two targets (same as Linux):
+
+| Target | Role |
+|--------|------|
+| NCB window | Navigates to `http://127.0.0.1:<port>/` — **our** product UI (title NCB): tabs, address, nav, save-nothing. |
+| Content | Page surface in a normal or ephemeral `BrowserContext`. **Duplicate** adds another tab in that same context. |
+
+Headless (`NCB_HEADLESS=1`) skips the NCB window entirely. `NCB_UI=0` (legacy `NCB_SHELL=0`) skips the window but keeps the content target + DevEx CLI.
+
+## Launch flags (Windows)
+
+Windows does **not** apply Linux sandbox / shm flags (`--no-sandbox`, `--disable-dev-shm-usage`). Shared CDP/debug args still apply (`--remote-debugging-port`, `--user-data-dir`, `--no-first-run`, etc.). Extra flags go through `extraArgs` / `NCB_ENGINE_EXTRA_ARGS` (space-separated) via `windowsLaunchFlags`.
+
+## Process lifecycle
+
+| Concern | Behavior |
+|---------|----------|
+| Install / pin fetch | `npm run fetch-engine-binary:windows` → `third_party/engine-binary/engine.exe` + `.ncb-engine-version` |
+| Launch | `launchEngineBinary` resolves via `resolveWindowsEnginePath`, spawns with Windows flags (`windowsHide`), waits for DevTools `/json/version` |
+| Quit | `stopEngineBinary` sends terminate, force-kills after 3s if needed, deletes ephemeral user-data-dir |
 | Downloads | Continue after tab close while process runs; quit stops them |
 
-## NCB product window
+DevEx attach (CDP WebSocket from `/json/version`) is unchanged across platforms.
 
-Interactive path uses the same host UI module as Linux (`src/host/ui/`): tab strip, address bar, nav, Duplicate, save-nothing toggle. Windows OS window glue (shortcuts, installer) is later.
+## Minimal OS glue
 
-## Out of scope (this stub)
+- Ephemeral profile: temp dir under `os.tmpdir()` (default)
+- Persistent profile: `NCB_USER_DATA_DIR` or `config.userDataDir`
+- Debugging port: ephemeral free port unless `debuggingPort` is set
+- Save-nothing mode: separate CDP BrowserContext (disposed on toggle OFF / close) — not the same as the process user-data-dir
 
-Full binary fetch, MSI/installer polish, Mac, mid-session storage wipe, element inspector, external log shippers.
+## Out of scope (this slice)
+
+MSI/installer polish, Mac (out), mid-session storage wipe, deep bfcache, element inspector, download manager UI.
