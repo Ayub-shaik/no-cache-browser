@@ -85,4 +85,4 @@ No download manager UI. Engine-handled downloads continue after a content tab cl
 
 ## Out of scope (this slice)
 
-Full Windows fetch/install (see [WINDOWS.md](./WINDOWS.md) stub), Mac (out), installer packaging polish, mid-session storage wipe, deep bfcache, element inspector, download manager.
+MSI/installer polish, Mac (out), mid-session storage wipe, deep bfcache, element inspector, download manager. Windows pin fetch + lifecycle: [WINDOWS.md](./WINDOWS.md).

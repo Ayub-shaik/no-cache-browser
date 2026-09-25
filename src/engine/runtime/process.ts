@@ -9,6 +9,10 @@ import {
   resolveLinuxEnginePath,
   resolveUserDataDir,
 } from "./linux.js";
+import {
+  resolveWindowsEnginePath,
+  windowsLaunchFlags,
+} from "./windows.js";
 
 export interface LaunchedEngine {
   process: ChildProcess;
@@ -17,6 +21,20 @@ export interface LaunchedEngine {
   debuggingPort: number;
   /** True if we created a temp user-data-dir and should delete on stop. */
   ephemeralUserData: boolean;
+}
+
+function isWindowsPlatform(): boolean {
+  return process.platform === "win32";
+}
+
+function resolveEnginePath(config?: EngineStartConfig): string {
+  return isWindowsPlatform()
+    ? resolveWindowsEnginePath(config)
+    : resolveLinuxEnginePath(config);
+}
+
+function platformLaunchFlags(config?: EngineStartConfig): string[] {
+  return isWindowsPlatform() ? windowsLaunchFlags(config) : linuxLaunchFlags(config);
 }
 
 async function findFreePort(): Promise<number> {
@@ -70,7 +88,7 @@ async function waitForDebuggerUrl(
 export async function launchEngineBinary(
   config?: EngineStartConfig,
 ): Promise<LaunchedEngine & { version: string; webSocketDebuggerUrl: string }> {
-  const executablePath = resolveLinuxEnginePath(config);
+  const executablePath = resolveEnginePath(config);
   const debuggingPort =
     config?.debuggingPort && config.debuggingPort > 0
       ? config.debuggingPort
@@ -95,7 +113,7 @@ export async function launchEngineBinary(
     "--no-default-browser-check",
     "--disable-default-apps",
     "--disable-background-networking",
-    ...linuxLaunchFlags(config),
+    ...platformLaunchFlags(config),
     ...(config?.headless ? ["--headless=new"] : []),
     ...(config?.extraArgs ?? []),
     "about:blank",
@@ -104,10 +122,12 @@ export async function launchEngineBinary(
   const child = spawn(executablePath, args, {
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
+    // Hide console window flash on Windows; no-op elsewhere.
+    windowsHide: true,
   });
 
   let stderr = "";
-  child.stderr.on("data", (chunk: Buffer) => {
+  child.stderr?.on("data", (chunk: Buffer) => {
     stderr += chunk.toString();
   });
 
@@ -139,6 +159,7 @@ export async function launchEngineBinary(
 export async function stopEngineBinary(launched: LaunchedEngine): Promise<void> {
   const { process: child } = launched;
   if (!child.killed) {
+    // SIGTERM works on Linux; on Windows Node maps kill() to TerminateProcess.
     child.kill("SIGTERM");
     await new Promise<void>((resolve) => {
       const t = setTimeout(() => {

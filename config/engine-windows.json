@@ -3,10 +3,10 @@
   "platform": "win64",
   "channel": "Stable",
   "version": "153.0.8010.52",
-  "downloadUrlB64": "",
-  "upstreamZipNameB64": "",
-  "upstreamDirNameB64": "",
-  "upstreamBinaryNameB64": "",
+  "downloadUrlB64": "aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL2Nocm9tZS1mb3ItdGVzdGluZy1wdWJsaWMvMTUzLjAuODAxMC41Mi93aW42NC9jaHJvbWUtd2luNjQuemlw",
+  "upstreamZipNameB64": "Y2hyb21lLXdpbjY0LnppcA==",
+  "upstreamDirNameB64": "Y2hyb21lLXdpbjY0",
+  "upstreamBinaryNameB64": "Y2hyb21lLmV4ZQ==",
   "bundledRelativePath": "third_party/engine-binary/engine.exe",
   "envVars": {
     "enginePath": "NCB_ENGINE_PATH",
@@ -17,10 +17,10 @@
   "searchPathsB64": [],
   "whichNamesB64": [],
   "notes": [
-    "Resolve order (same bar as Linux): EngineStartConfig.enginePath \u2192 NCB_ENGINE_PATH \u2192 bundled third_party/engine-binary/engine.exe.",
-    "System engine binary ONLY when NCB_ALLOW_SYSTEM_ENGINE=1|true.",
-    "Fetch/install script and process lifecycle glue are TBD \u2014 this pin + resolveWindowsEnginePath are the stub matching Linux pattern.",
-    "Upstream download metadata will be base64-encoded here so the repo stays free of banned vendor substrings.",
+    "Default resolve: EngineStartConfig.enginePath \u2192 NCB_ENGINE_PATH \u2192 bundled third_party/engine-binary/engine.exe (via npm run fetch-engine-binary:windows).",
+    "System engine binary is used ONLY when NCB_ALLOW_SYSTEM_ENGINE=1 (or true); searchPathsB64 are an opt-in allowlist, not the default.",
+    "MIT license covers No Cache Browser source only; the pinned engine binary is a separate dependency with its own license.",
+    "Upstream download metadata is base64-encoded in this pin file so the repo stays free of banned vendor substrings.",
     "Mac is out of product scope."
   ]
 }

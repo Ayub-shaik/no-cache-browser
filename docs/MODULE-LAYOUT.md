@@ -17,7 +17,7 @@ src/
       tab-impl.ts         // setNoCache, Network.setBypassServiceWorker, back/forward
       tab-sinks.ts
       linux.ts
-      windows.ts          // Windows resolve stub (same order as Linux)
+      windows.ts          // Windows resolve + launch flags (same order as Linux)
   host/
     main.ts               // engine → NCB window server → content + DevEx
     ui/
@@ -59,4 +59,4 @@ src/
 - [ ] In-app DevEx dock (console / network / export) in NCB window
 - [x] Ephemeral BrowserContext + save-nothing toggle
 - [x] NCB product window (tabs / URL / Duplicate / toggle / status)
-- [ ] Windows pin fetch + process lifecycle (stub: `runtime/windows.ts`, `config/engine-windows.json`)
+- [x] Windows pin fetch + process lifecycle (`runtime/windows.ts`, `config/engine-windows.json`, `scripts/fetch-engine-binary-windows.mjs`)

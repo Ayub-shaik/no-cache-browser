@@ -45,7 +45,7 @@ function loadPin(): EnginePin | null {
   return null;
 }
 
-/** Bundled Windows engine binary path (gitignored; fetch script TBD). */
+/** Bundled Windows engine binary path (gitignored; populate via npm run fetch-engine-binary:windows). */
 export function bundledWindowsEnginePath(): string {
   return join(process.cwd(), "third_party", "engine-binary", "engine.exe");
 }
@@ -56,7 +56,7 @@ function engineNotFoundError(): Error {
       "Engine binary not found for No Cache Browser (Windows).",
       "Default resolve does not use a system browser binary.",
       "Fix one of:",
-      "  1) Place pinned binary at third_party/engine-binary/engine.exe (fetch script TBD)",
+      "  1) npm run fetch-engine-binary:windows   # installs pinned binary into third_party/engine-binary/",
       "  2) export NCB_ENGINE_PATH=/path/to/engine.exe",
       "  3) pass EngineStartConfig.enginePath",
       "Opt-in only: NCB_ALLOW_SYSTEM_ENGINE=1 to search system engine paths.",
@@ -66,7 +66,7 @@ function engineNotFoundError(): Error {
 }
 
 /**
- * Resolve engine binary for Windows (stub — same order as Linux).
+ * Resolve engine binary for Windows.
  *
  * Order (default — system NOT used):
  * 1. EngineStartConfig.enginePath
@@ -74,7 +74,7 @@ function engineNotFoundError(): Error {
  * 3. Bundled third_party/engine-binary/engine.exe
  * 4. System paths — only if NCB_ALLOW_SYSTEM_ENGINE=1|true
  *
- * See docs/WINDOWS.md. Full pin fetch / process lifecycle lands in later BE commits.
+ * See docs/WINDOWS.md.
  */
 export function resolveWindowsEnginePath(config?: EngineStartConfig): string {
   const fromConfig = config?.enginePath?.trim();
@@ -107,4 +107,17 @@ export function resolveWindowsEnginePath(config?: EngineStartConfig): string {
   }
 
   throw engineNotFoundError();
+}
+
+/**
+ * Windows engine launch flags. No Linux sandbox / shm flags.
+ * Extra flags via NCB_ENGINE_EXTRA_ARGS (space-separated) or config.extraArgs.
+ */
+export function windowsLaunchFlags(_config?: EngineStartConfig): string[] {
+  const flags: string[] = [];
+  const fromEnv = process.env.NCB_ENGINE_EXTRA_ARGS?.trim();
+  if (fromEnv) {
+    flags.push(...fromEnv.split(/\s+/).filter(Boolean));
+  }
+  return flags;
 }
